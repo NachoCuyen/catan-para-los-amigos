@@ -1,0 +1,15 @@
+{
+  "name": "catan-3d-online",
+  "version": "1.0.0",
+  "description": "Juego de Catan 3D Online Multijugador con salas por código",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node server/index.js"
+  },
+  "dependencies": {
+    "express": "^4.21.0",
+    "socket.io": "^4.8.0",
+    "three": "^0.186.1"
+  }
+}

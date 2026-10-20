@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Catan 3D Online — Edición Imperios</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css" />
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "/vendor/three/build/three.module.js",
+        "three/addons/": "/vendor/three/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <!-- Lienzo 3D de Three.js -->
+  <div id="canvas-container"></div>
+
+  <!-- PANTALLA DE INICIO / LOBBY PERSONALIZABLE (TODO EN UNA SOLA VENTANA) -->
+  <div id="lobby-overlay" class="overlay active">
+    <div class="lobby-card">
+      <div class="brand-header" style="justify-content: space-between;">
+        <div style="display:flex;align-items:center;gap:14px;">
+          <div class="brand-emblem">🧭</div>
+          <div>
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+              <h1 class="cinzel-title">CATAN 3D ONLINE</h1>
+              <span id="server-status-pill" class="server-status-pill">🟢 Servidor Online Activo</span>
+            </div>
+            <p class="subtitle">Forja tu imperio, comercia por mar y conquista la isla con tus amigos</p>
+          </div>
+        </div>
+        <button id="btn-lobby-rules" class="btn btn-outline btn-sm">📖 Reglas de Catan</button>
+      </div>
+
+      <!-- Vista 1: Todo en una sola pantalla con distribución de 2 columnas fáciles de entender -->
+      <div id="auth-section">
+        <div id="invite-detected-banner" class="invite-detected-banner hidden">
+          <span class="invite-badge-icon">🎟️</span>
+          <div>
+            <strong>¡Invitación lista para entrar a la Sala <span id="invite-banner-code">----</span>!</strong>
+            <p>Revisa tu nombre y color a la izquierda y pulsa el botón <strong>Conectarme a la Sala</strong> a la derecha.</p>
+          </div>
+        </div>
+
+        <div class="auth-dashboard-grid">
+          <!-- COLUMNA IZQUIERDA: PASO 1 (TU PERFIL E IMPERIO 3D) -->
+          <div class="auth-col-panel">
+            <div class="step-header">
+              <span class="step-badge">PASO 1</span>
+              <h3>👤 Tu Gobernante e Imperio 3D</h3>
+            </div>
+
+            <div class="form-group" style="margin-bottom:12px;">
+              <label for="player-name-input">Tu Nombre <span style="color:#f87171">* (Obligatorio)</span></label>
+              <input type="text" id="player-name-input" placeholder="Escribe tu nombre aquí (mín. 2 letras)..." maxlength="18" required />
+            </div>
+
+            <div class="customizer-box" style="margin-bottom:0;">
+              <div class="customizer-split">
+                <div class="customizer-controls">
+                  <div class="cust-row">
+                    <span class="cust-label">Emblema</span>
+                    <div id="init-avatar-picker" class="avatar-picker"></div>
+                  </div>
+                  <div class="cust-row">
+                    <span class="cust-label">Color</span>
+                    <div id="init-color-picker" class="color-picker"></div>
+                  </div>
+                  <div class="cust-row">
+                    <span class="cust-label">Arquitectura 3D</span>
+                    <div id="init-style-picker" class="style-picker"></div>
+                  </div>
+                </div>
+                <div class="preview-box">
+                  <div class="preview-title" id="init-preview-label">Vista Previa 3D</div>
+                  <div id="piece-preview-init" class="piece-preview-canvas"></div>
+                  <div class="preview-caption">Poblado • Ciudad • Camino</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- COLUMNA DERECHA: PASO 2 (CREAR SALA O CONECTARTE CON AMIGO) -->
+          <div class="auth-col-panel auth-actions" id="auth-actions-box">
+            <div class="step-header">
+              <span class="step-badge">PASO 2</span>
+              <h3>⚔️ Elige cómo entrar a jugar</h3>
+            </div>
+
+            <!-- Opción A: Crear Sala -->
+            <div class="mode-action-card host-mode-card" id="host-card-box">
+              <div class="mode-card-title">👑 Opción A: Crear una Partida Nueva</div>
+              <p class="mode-card-desc">Ideal si tú invitas. Al crearla te daremos el <strong>Link y Código</strong> para mandar por WhatsApp o Discord.</p>
+              <button id="btn-create-room" class="btn btn-primary btn-large" style="width:100%;">
+                ✨ Crear Sala Nueva
+              </button>
+            </div>
+
+            <!-- Opción B: Unirse con Link o Código -->
+            <div class="mode-action-card join-mode-card" id="join-row-box">
+              <div class="mode-card-title">🔗 Opción B: ¿Un amigo creó la partida?</div>
+              <p class="mode-card-desc">Pega aquí el <strong>Link completo</strong> o el <strong>Código de 4 letras</strong> que te mandó tu amigo:</p>
+              <div class="join-stack">
+                <input type="text" id="room-code-input" placeholder="Pega el Link (https://...) o Código (ej: ABCD)" />
+                <button id="btn-join-room" class="btn btn-join-friend btn-large" style="width:100%;">
+                  🚀 Conectarme a la Sala
+                </button>
+              </div>
+            </div>
+
+            <!-- Panel integrado de Links del Servidor (reemplaza la ventana suelta del conector) -->
+            <div class="integrated-connector-box">
+              <div class="connector-box-header">
+                <span>📡 Links de tu Servidor (para compartir con amigos)</span>
+              </div>
+              <div class="connector-url-line">
+                <span class="conn-tag">🌐 Internet:</span>
+                <input type="text" id="init-public-url" readonly value="Generando link público..." />
+                <button type="button" id="btn-copy-init-public" class="btn btn-secondary btn-sm">📋 Copiar</button>
+              </div>
+              <div class="connector-url-line">
+                <span class="conn-tag">🏠 Red Wi-Fi:</span>
+                <input type="text" id="init-lan-url" readonly value="http://localhost:3000" />
+                <button type="button" id="btn-copy-init-lan" class="btn btn-secondary btn-sm">📋 Copiar</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p id="lobby-error" class="error-msg hidden"></p>
+      </div>
+
+      <!-- Vista 2: Sala de Espera, Personalización en Vivo y Reglas -->
+      <div id="waiting-room-section" class="hidden">
+        <div class="room-code-banner">
+          <div class="room-code-top">
+            <div>
+              <span class="label">CÓDIGO DE SALA</span>
+              <h2 id="lobby-room-code" class="cinzel-title">----</h2>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+              <button id="btn-leave-lobby" class="btn btn-leave btn-sm" title="Salir de esta sala y volver al menú principal">⬅️ Salir de la Sala</button>
+              <button id="btn-reroll-map" class="btn btn-secondary btn-sm" title="Generar nueva isla 3D aleatoria">🗺️ Nuevo Mapa</button>
+              <button id="btn-copy-link" class="btn btn-primary btn-sm">📋 Copiar Link de Invitación</button>
+            </div>
+          </div>
+          <div class="invite-link-bar">
+            <div class="invite-mode-tabs">
+              <button type="button" class="invite-mode-tab active" data-mode="auto" id="tab-link-auto">🌐 Link Automático</button>
+              <button type="button" class="invite-mode-tab" data-mode="lan" id="tab-link-lan">🏠 Red Wi-Fi / LAN</button>
+              <button type="button" class="invite-mode-tab" data-mode="local" id="tab-link-local">💻 Misma PC</button>
+            </div>
+            <div class="invite-url-row">
+              <input type="text" id="invite-url-input" class="invite-url-input" readonly value="" title="Haz clic para seleccionar el link" />
+            </div>
+          </div>
+        </div>
+
+        <div class="lobby-grid">
+          <!-- Columna Izquierda: Jugadores y Tu Perfil -->
+          <div class="lobby-col">
+            <h3 class="section-heading">Jugadores (<span id="lobby-player-count">1</span>/4) — Colores Únicos</h3>
+            <div id="lobby-player-list" class="lobby-player-list"></div>
+
+            <div class="mini-customizer">
+              <div class="cust-subtitle">🎨 Tu Imperio (Colores en uso aparecen con 🔒):</div>
+              <div id="lobby-color-picker" class="color-picker"></div>
+              <div id="lobby-avatar-picker" class="avatar-picker" style="margin-top:6px"></div>
+              <div id="lobby-style-picker" class="style-picker" style="margin-top:6px"></div>
+              <div class="preview-box" style="margin-top:8px">
+                <div class="preview-title" id="lobby-preview-label">Tus Piezas 3D</div>
+                <div id="piece-preview-lobby" class="piece-preview-canvas"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Columna Derecha: Reglas de la Partida y Ambiente -->
+          <div class="lobby-col">
+            <h3 class="section-heading">⚙️ Reglas de la Partida</h3>
+            <div class="rules-box">
+              <div class="rule-item">
+                <label>🗺️ Modo del Mapa</label>
+                <select id="setting-map-mode">
+                  <option value="random" selected>🎲 Aleatorio (isla distinta cada vez)</option>
+                  <option value="official">📜 Oficial (disposición del reglamento)</option>
+                </select>
+              </div>
+
+              <div class="rule-item">
+                <label>🏆 Puntos para Ganar</label>
+                <select id="setting-vp">
+                  <option value="8">8 PV (Partida Rápida)</option>
+                  <option value="10" selected>10 PV (Estándar Oficial)</option>
+                  <option value="12">12 PV (Partida Extendida)</option>
+                  <option value="15">15 PV (Gran Imperio)</option>
+                </select>
+              </div>
+
+              <div class="rule-item">
+                <label>🥷 Límite de Cartas (Ladrón 7)</label>
+                <select id="setting-discard">
+                  <option value="7" selected>7 Cartas (Clásico)</option>
+                  <option value="9">9 Cartas (Intermedio)</option>
+                  <option value="12">12 Cartas (Relajado)</option>
+                </select>
+              </div>
+
+              <div class="rule-item">
+                <label>⏱️ Reloj por Turno</label>
+                <select id="setting-timer">
+                  <option value="60">60 seg (Rápido)</option>
+                  <option value="90" selected>90 seg (Estándar)</option>
+                  <option value="120">120 seg (Relajado)</option>
+                  <option value="0">Sin límite de tiempo</option>
+                </select>
+              </div>
+
+              <div class="rule-item checkbox-rule">
+                <label>
+                  <input type="checkbox" id="setting-friendly-robber" />
+                  🛡️ Ladrón Amistoso (No bloquea a jugadores con 2 PV)
+                </label>
+              </div>
+
+              <div class="rule-item">
+                <label>🌅 Atmósfera 3D de la Isla</label>
+                <div class="theme-switcher">
+                  <button class="theme-btn active" data-theme="day">☀️ Día</button>
+                  <button class="theme-btn" data-theme="sunset">🌅 Ocaso</button>
+                  <button class="theme-btn" data-theme="night">🌙 Noche</button>
+                  <button class="theme-btn" data-theme="storm">⛈️ Tormenta</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="lobby-controls">
+          <button id="btn-add-bot" class="btn btn-secondary">🤖 + Agregar Bot IA</button>
+          <button id="btn-start-game" class="btn btn-primary btn-large">⚔️ ¡Comenzar Conquista!</button>
+        </div>
+        <p id="waiting-hint" class="hint-text">Esperando a que el anfitrión inicie la partida...</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- HUD DE JUEGO -->
+  <div id="game-hud" class="hidden">
+    <!-- Destello en bordes cuando empieza tu turno -->
+    <div id="turn-alert-flash" class="turn-alert-flash hidden"></div>
+
+    <!-- Barra Superior -->
+    <header class="top-bar">
+      <div class="top-left">
+        <button id="btn-leave-game" class="btn btn-leave btn-sm" title="Salir de la partida y volver al menú principal">🚪 Salir</button>
+        <div class="room-badge" id="hud-room-badge" title="Haz clic para copiar el link de invitación">
+          <span class="badge-label">SALA</span>
+          <strong id="hud-room-code">----</strong>
+          <span class="copy-icon">🔗</span>
+        </div>
+        <button id="btn-reset-camera" class="btn btn-icon" title="Centrar cámara 3D">🎥 Vista</button>
+        <button id="btn-cycle-theme" class="btn btn-icon" title="Cambiar clima / hora del día">☀️ Clima</button>
+        <button id="btn-open-stats" class="btn btn-icon" title="Ver Estadísticas de Dados y Recursos">📊 Estadísticas</button>
+        <button id="btn-costs-help" class="btn btn-outline btn-sm" title="Ver Manual de Reglas y Tabla de Costos">📖 Reglas</button>
+      </div>
+
+      <div class="turn-status-banner" id="turn-banner">
+        <div class="turn-indicator-dot" id="turn-dot"></div>
+        <div class="turn-texts">
+          <div id="turn-title" class="turn-title">Cargando turno...</div>
+          <div id="turn-subtitle" class="turn-subtitle">Prepara tu estrategia</div>
+        </div>
+        <div id="turn-timer-badge" class="turn-timer-badge hidden">⏱️ --:--</div>
+      </div>
+
+      <div class="dice-box" id="dice-box" title="Haz clic para ver el historial de dados">
+        <div class="die" id="die-1">?</div>
+        <div class="die" id="die-2">?</div>
+        <div class="dice-sum" id="dice-sum">-</div>
+      </div>
+    </header>
+
+    <!-- Tarjetas de Jugadores -->
+    <aside id="players-panel" class="players-panel"></aside>
+
+    <!-- Banner Flotante de Oferta de Comercio Activa -->
+    <div id="trade-offer-banner" class="trade-offer-banner hidden"></div>
+
+    <!-- Panel Derecho Unificado: Crónica + Chat y Reacciones siempre visibles -->
+    <aside class="side-panel">
+      <div class="side-section side-section-log">
+        <div class="side-section-header">📜 Crónica de la Partida</div>
+        <div id="game-log-list" class="log-list"></div>
+      </div>
+
+      <div class="side-section side-section-chat">
+        <div class="side-section-header">💬 Chat y Reacciones</div>
+        <div id="chat-list" class="chat-list"></div>
+
+        <!-- Botones de Reacciones Rápidas integrados en el Chat -->
+        <div class="chat-reactions-panel">
+          <div class="chat-reactions-row resources-react-row">
+            <button type="button" class="reaction-chip res-react" data-emoji="🌲" data-text="¡Necesito Madera!" title="Pedir Madera">🌲 Madera</button>
+            <button type="button" class="reaction-chip res-react" data-emoji="🧱" data-text="¡Busco Ladrillo!" title="Pedir Ladrillo">🧱 Ladrillo</button>
+            <button type="button" class="reaction-chip res-react" data-emoji="🐑" data-text="¡Alguien tiene Ovejas?!" title="Pedir Oveja">🐑 Oveja</button>
+            <button type="button" class="reaction-chip res-react" data-emoji="🌾" data-text="¡Necesito Trigo!" title="Pedir Trigo">🌾 Trigo</button>
+            <button type="button" class="reaction-chip res-react" data-emoji="⛰️" data-text="¡Cambio por Piedra!" title="Pedir Piedra">⛰️ Piedra</button>
+          </div>
+          <div class="chat-reactions-grid">
+            <button type="button" class="reaction-chip" data-emoji="⛵" data-text="¡Quiero comerciar, hagan ofertas!">⛵ Comerciar</button>
+            <button type="button" class="reaction-chip" data-emoji="🤝" data-text="¡Hacemos trato!">🤝 ¡Trato!</button>
+            <button type="button" class="reaction-chip" data-emoji="🥷" data-text="¡No me roben a mí!">🥷 No roben</button>
+            <button type="button" class="reaction-chip" data-emoji="😈" data-text="¡El Ladrón va para tu casa!">😈 ¡Toma 7!</button>
+            <button type="button" class="reaction-chip" data-emoji="🎲" data-text="¡Qué buena tirada!">🎲 Qué suerte</button>
+            <button type="button" class="reaction-chip" data-emoji="😭" data-text="¡Nunca sale mi número!">😭 Mi n°</button>
+            <button type="button" class="reaction-chip" data-emoji="⏳" data-text="¡Apurate que se enfría el turno!">⏳ ¡Apurate!</button>
+            <button type="button" class="reaction-chip" data-emoji="👑" data-text="¡Esta isla ya tiene dueño!">👑 ¡Victoria!</button>
+          </div>
+        </div>
+
+        <form id="chat-form" class="chat-form">
+          <input type="text" id="chat-input" placeholder="Escribe un mensaje..." maxlength="160" />
+          <button type="submit" class="btn btn-primary btn-sm">Enviar</button>
+        </form>
+      </div>
+    </aside>
+
+    <!-- Barra Inferior: Mano de Recursos, Cartas de Desarrollo y Acciones -->
+    <footer class="bottom-bar">
+      <div class="hand-panel">
+        <div class="resource-cards" id="my-resources"></div>
+        <div class="dev-cards-strip" id="my-dev-cards"></div>
+      </div>
+
+      <div class="action-buttons">
+        <button id="btn-roll-dice" class="action-btn highlight">
+          <span class="act-icon">🎲</span>
+          <span class="act-label">Tirar Dados</span>
+        </button>
+
+        <button id="btn-build-road" class="action-btn" title="Costo: 1 Madera + 1 Ladrillo">
+          <span class="act-icon">🛤️</span>
+          <span class="act-label">Camino</span>
+          <span class="act-cost">🌲🧱</span>
+        </button>
+
+        <button id="btn-build-settlement" class="action-btn" title="Costo: 1 Madera + 1 Ladrillo + 1 Oveja + 1 Trigo">
+          <span class="act-icon">🏠</span>
+          <span class="act-label">Poblado</span>
+          <span class="act-cost">🌲🧱🐑🌾</span>
+        </button>
+
+        <button id="btn-build-city" class="action-btn" title="Costo: 2 Trigo + 3 Piedra">
+          <span class="act-icon">🏰</span>
+          <span class="act-label">Ciudad</span>
+          <span class="act-cost">2🌾 3⛰️</span>
+        </button>
+
+        <button id="btn-buy-dev" class="action-btn" title="Costo: 1 Oveja + 1 Trigo + 1 Piedra">
+          <span class="act-icon">🃏</span>
+          <span class="act-label">Desarrollo</span>
+          <span class="act-cost">🐑🌾⛰️</span>
+        </button>
+
+        <button id="btn-open-trade" class="action-btn">
+          <span class="act-icon">⛵</span>
+          <span class="act-label">Comerciar</span>
+          <span class="act-cost">Banco / Mesa</span>
+        </button>
+
+        <button id="btn-end-turn" class="action-btn end-turn-btn">
+          <span class="act-icon">⏭️</span>
+          <span class="act-label">Fin Turno</span>
+        </button>
+      </div>
+    </footer>
+  </div>
+
+  <!-- MODAL: Descartar recursos por el 7 -->
+  <div id="discard-modal" class="modal hidden">
+    <div class="modal-content">
+      <h2 class="cinzel-title">🥷 ¡Salió un 7! El Ladrón ataca</h2>
+      <p id="discard-instruction">Superaste el límite de cartas. Debes descartar la mitad.</p>
+      <div id="discard-selectors" class="resource-selector-grid"></div>
+      <div class="modal-footer">
+        <button id="btn-confirm-discard" class="btn btn-primary">Confirmar Descarte</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Elegir víctima a quien robar -->
+  <div id="steal-modal" class="modal hidden">
+    <div class="modal-content">
+      <h2 class="cinzel-title">🥷 ¿A quién quieres robarle 1 recurso?</h2>
+      <p>Elige uno de los jugadores con asentamientos en este hexágono:</p>
+      <div id="steal-candidates-list" class="steal-candidates-list"></div>
+    </div>
+  </div>
+
+  <!-- MODAL: Comercio Marítimo y Entre Jugadores (Súper Visual e Intuitivo) -->
+  <div id="trade-modal" class="modal hidden">
+    <div class="modal-content modal-wide">
+      <div class="modal-header">
+        <h2 class="cinzel-title">⛵ Centro de Comercio</h2>
+        <button id="btn-close-trade" class="btn-close">✕</button>
+      </div>
+
+      <div class="trade-tabs">
+        <button class="trade-tab-btn active" data-tradetab="players">🤝 Cambiar con Jugadores</button>
+        <button class="trade-tab-btn" data-tradetab="bank">🏦 Cambiar con el Banco</button>
+      </div>
+
+      <!-- PESTAÑA 1: ENTRE JUGADORES (MESA VISUAL DE CARTAS) -->
+      <div id="tradetab-players" class="trade-tab-body active">
+        <!-- Paso 1: Tus cartas para tocar y agregar -->
+        <div class="simple-trade-step">
+          <div class="step-label">1️⃣ Toca las cartas de <strong>tu mano</strong> que quieras dar:</div>
+          <div id="offer-give-grid" class="visual-hand-picker"></div>
+        </div>
+
+        <!-- Paso 2: Qué quieres pedir -->
+        <div class="simple-trade-step">
+          <div class="step-label">2️⃣ Toca qué recurso <strong>quieres recibir</strong> a cambio:</div>
+          <div id="offer-want-grid" class="visual-want-picker"></div>
+        </div>
+
+        <!-- Mesa Visual de Intercambio: Lo que das vs Lo que recibes -->
+        <div class="visual-trade-table">
+          <div class="vtt-side vtt-give-side">
+            <div class="vtt-header">📤 TÚ ENTREGAS <small>(toca una carta para quitarla)</small></div>
+            <div id="vtt-give-tray" class="vtt-tray"></div>
+          </div>
+
+          <div class="vtt-exchange-icon">⇄</div>
+
+          <div class="vtt-side vtt-want-side">
+            <div class="vtt-header">📥 TÚ PIDES <small>(toca una carta para quitarla)</small></div>
+            <div id="vtt-want-tray" class="vtt-tray"></div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button id="btn-clear-player-trade" class="btn btn-secondary">🗑️ Vaciar Mesa</button>
+          <button id="btn-propose-player-trade" class="btn btn-primary">📢 Enviar Oferta a los Jugadores</button>
+        </div>
+      </div>
+
+      <!-- PESTAÑA 2: BANCO Y PUERTOS (DIRECTO Y GUIADO) -->
+      <div id="tradetab-bank" class="trade-tab-body">
+        <div id="bank-trade-container"></div>
+        <div class="modal-footer">
+          <button id="btn-execute-bank-trade" class="btn btn-primary">⚓ Cambiar Ahora con el Banco</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Jugar Carta de Desarrollo -->
+  <div id="dev-modal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="dev-modal-title" class="cinzel-title">Jugar Carta de Desarrollo</h2>
+        <button id="btn-close-dev-modal" class="btn-close">✕</button>
+      </div>
+      <p id="dev-modal-desc"></p>
+      <div id="dev-modal-options" class="bank-res-list"></div>
+      <div class="modal-footer">
+        <button id="btn-confirm-dev-card" class="btn btn-primary">Usar Carta</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL COMPLETO: Manual de Reglas Oficiales de Catan y Costos -->
+  <div id="costs-modal" class="modal hidden">
+    <div class="modal-content modal-wide" style="max-height:88vh;overflow-y:auto;">
+      <div class="modal-header">
+        <h2 class="cinzel-title">📖 Manual de Reglas Oficiales de Catan y Costos</h2>
+        <button id="btn-close-costs" class="btn-close">✕</button>
+      </div>
+
+      <div class="rules-manual">
+        <div class="manual-section highlight-box">
+          <h3>🔄 1. ¿Por qué el último jugador coloca 2 veces seguidas al inicio? (Regla de la Serpiente)</h3>
+          <p>
+            En las reglas oficiales de Catan, la <strong>Fase de Fundación Inicial</strong> consta de 2 rondas:
+          </p>
+          <ul>
+            <li><strong>1ª Ronda (Orden de Ida: 1° → 2° → 3° → 4°):</strong> Cada jugador coloca su <strong>1° Poblado</strong> y su <strong>1° Camino</strong>.</li>
+            <li><strong>2ª Ronda (Orden Inverso: 4° → 3° → 2° → 1°):</strong> El orden da la vuelta. Por eso, <strong>el último jugador de la 1ª ronda es el primero de la 2ª ronda</strong> y coloca sus dos poblados seguidos para compensar haber elegido último al principio.</li>
+            <li><strong>Recursos Iniciales:</strong> Cada jugador recibe 1 carta de recurso por cada hexágono de terreno que rodee a su <strong>2° Poblado</strong>.</li>
+          </ul>
+        </div>
+
+        <div class="manual-section">
+          <h3>📜 2. Tabla de Costos de Construcción y Puntos</h3>
+          <table class="costs-table">
+            <thead>
+              <tr>
+                <th>Construcción</th>
+                <th>Costo de Recursos</th>
+                <th>Efecto y Puntos de Victoria</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>🛤️ <strong>Camino</strong></td>
+                <td>1 Madera 🌲 + 1 Ladrillo 🧱</td>
+                <td>Une tus rutas. 5+ caminos continuos otorgan la <strong>Gran Ruta Comercial (+2 PV)</strong>.</td>
+              </tr>
+              <tr>
+                <td>🏠 <strong>Poblado</strong></td>
+                <td>1 Madera 🌲 + 1 Ladrillo 🧱 + 1 Oveja 🐑 + 1 Trigo 🌾</td>
+                <td>Vale <strong>1 PV</strong>. Produce <strong>1 recurso</strong> cuando sale el número de sus hexágonos vecinos.</td>
+              </tr>
+              <tr>
+                <td>🏰 <strong>Ciudad</strong></td>
+                <td>2 Trigo 🌾 + 3 Piedra ⛰️</td>
+                <td>Mejora un Poblado propio. Vale <strong>2 PV</strong> y produce <strong>2 recursos</strong> por hexágono.</td>
+              </tr>
+              <tr>
+                <td>🃏 <strong>Carta de Desarrollo</strong></td>
+                <td>1 Oveja 🐑 + 1 Trigo 🌾 + 1 Piedra ⛰️</td>
+                <td>Caballeros (3+ otorgan <strong>Gran Ejército +2 PV</strong>), Cartas de Progreso o +1 PV directo.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="manual-section">
+          <h3>📏 3. Regla de la Distancia (Dónde construir Poblados)</h3>
+          <p>
+            Un Poblado solo puede construirse en una intersección si <strong>ninguna de las 3 intersecciones vecinas directas</strong> tiene ya un poblado o ciudad (tuyo o de otro jugador). Además, durante la partida debe estar conectado a al menos un Camino tuyo.
+          </p>
+        </div>
+
+        <div class="manual-section">
+          <h3>🥷 4. ¿Qué pasa cuando sale un 7 en los dados? (El Ladrón)</h3>
+          <ul>
+            <li>Nadie produce recursos en ese turno.</li>
+            <li><strong>Descarte:</strong> Todo jugador que tenga más de 7 cartas en su mano (o el límite configurado en la sala) pierde la mitad de sus cartas (redondeado hacia abajo).</li>
+            <li><strong>Bloqueo y Robo:</strong> El jugador en turno mueve al <strong>Ladrón</strong> a otro hexágono (bloqueando su producción mientras el Ladrón esté allí) y le roba 1 carta al azar a un jugador que tenga un poblado o ciudad en ese hexágono.</li>
+          </ul>
+        </div>
+
+        <div class="manual-section">
+          <h3>⛵ 5. Comercio Marítimo y Puertos</h3>
+          <ul>
+            <li><strong>4:1 con el Banco:</strong> Siempre puedes entregar 4 recursos iguales para recibir 1 cualquiera.</li>
+            <li><strong>3:1 Puerto General (⛵):</strong> Si tienes un poblado/ciudad en un puerto 3:1, entregas solo 3 iguales por 1.</li>
+            <li><strong>2:1 Puerto Especializado (🌲🧱🐑🌾⛰️):</strong> Si tienes ese puerto, entregas solo 2 de ese recurso específico por 1 cualquiera.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Victoria -->
+  <div id="victory-modal" class="modal hidden">
+    <div class="modal-content victory-card">
+      <div class="victory-trophy">🏆</div>
+      <h1 id="victory-title" class="cinzel-title">¡Tenemos un Ganador!</h1>
+      <p id="victory-subtitle">Ha conquistado la isla de Catan.</p>
+      <div id="victory-standings" class="victory-standings"></div>
+      <div class="modal-footer" style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+        <button id="btn-rematch-room" class="btn btn-primary">🔄 Jugar Revancha (Misma Sala)</button>
+        <button id="btn-close-victory" class="btn btn-secondary">👁️ Ver Tablero 3D</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ANIMACIÓN CENTRAL DE LANZAMIENTO DE DADOS -->
+  <div id="dice-roll-overlay" class="dice-roll-overlay hidden">
+    <div class="dice-roll-card">
+      <div id="dice-roller-label" class="dice-roller-label">🎲 Lanzando los dados...</div>
+      <div class="dice-3d-stage">
+        <div id="anim-die-1" class="anim-die">
+          <div class="die-face" id="anim-die-face-1"></div>
+        </div>
+        <div id="anim-die-2" class="anim-die">
+          <div class="die-face" id="anim-die-face-2"></div>
+        </div>
+      </div>
+      <div id="dice-total-badge" class="dice-total-badge">...</div>
+    </div>
+  </div>
+
+  <!-- MODAL: Estadísticas de la Partida en Vivo -->
+  <div id="stats-modal" class="modal hidden">
+    <div class="modal-content modal-wide">
+      <div class="modal-header">
+        <h2 class="cinzel-title">📊 Estadísticas de la Partida</h2>
+        <button id="btn-close-stats" class="btn-close">✕</button>
+      </div>
+      <div id="stats-summary-pills" class="stats-summary-pills"></div>
+
+      <div class="stats-section">
+        <h4>🎲 Frecuencia de Números en los Dados (2 al 12):</h4>
+        <div id="stats-dice-chart" class="stats-dice-chart"></div>
+      </div>
+
+      <div class="stats-section">
+        <h4>🌾 Recursos Producidos por cada Jugador:</h4>
+        <div id="stats-production-list" class="stats-production-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Capa de Animación de Cartas 3D/2D Volando desde los Hexágonos hacia tu Mano -->
+  <div id="flying-cards-layer" class="flying-cards-layer"></div>
+
+  <!-- Toast de Notificaciones -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>
