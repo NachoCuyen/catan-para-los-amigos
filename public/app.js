@@ -39,7 +39,7 @@ const PIECE_STYLES = [
   { id: 'oriental', name: '⛩️ Dinastía Oriental' }
 ];
 
-const THEMES_ORDER = ['dynamic', 'day', 'sunset', 'night', 'storm'];
+const THEMES_ORDER = ['dynamic', 'day', 'sunset', 'night', 'storm', 'snow'];
 const THEME_NAMES = {
   dynamic: '🔄 Dinámico',
   sunrise: '🌄 Amanecer',
@@ -852,6 +852,11 @@ function refreshUI() {
         const name = roomState.weather.name || 'Clima';
         const desc = roomState.weather.description || '';
         showToast(`${icon} Clima en Catan: ¡${name}! ${desc}`, 5000);
+        if (targetWeather === 'snow') {
+          playTone(784, 0.2, 'sine');
+          setTimeout(() => playTone(1046, 0.25, 'sine'), 160);
+          setTimeout(() => playTone(1318, 0.4, 'sine'), 320);
+        }
         lastAnnouncedWeatherTheme = targetWeather;
       }
 
