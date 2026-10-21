@@ -187,6 +187,28 @@ export class CatanBoard3D {
     this.currentPiecesHash = '';
     this.terrainTextures = {};
 
+    // Materiales compartidos de la nieve acumulada sobre el tablero:
+    // arrancan invisibles y solo aparecen (fundido suave) durante el evento de Nevada
+    this.snowCoverAmount = 0; // 0 = sin nieve, 1 = nevada completa
+    this.snowRimMat = new THREE.MeshStandardMaterial({
+      color: 0xf8fafc,
+      roughness: 0.45,
+      transparent: true,
+      opacity: 0,
+      depthWrite: false,
+      polygonOffset: true,
+      polygonOffsetFactor: -1,
+      polygonOffsetUnits: -1
+    });
+    this.snowPropMat = new THREE.MeshStandardMaterial({
+      color: 0xf8fafc,
+      roughness: 0.45,
+      transparent: true,
+      opacity: 0,
+      depthWrite: false
+    });
+    this.snowCoverMeshes = [];
+
     this._initLights();
     this._initOcean();
     this._initWeatherAndWildlife();
@@ -645,6 +667,7 @@ export class CatanBoard3D {
     this.animatedShips = [];
     this.animatedSheep = [];
     this.tokenMeshes = [];
+    this.snowCoverMeshes = [];
 
     for (const hex of board.hexes) {
       const hexGroup = new THREE.Group();
@@ -677,20 +700,14 @@ export class CatanBoard3D {
       hexGroup.add(tileMesh);
 
       // Corona de nieve perimetral sobre la loseta (deja el 70% central libre para distinguir claramente el bioma)
+      // Solo visible durante la Nevada: usa el material compartido que se funde/derrite en _animate
       const snowRimGeo = new THREE.RingGeometry(SCALE * 0.72, SCALE * 0.93, 6);
-      const snowRimMat = new THREE.MeshStandardMaterial({
-        color: 0xf8fafc,
-        roughness: 0.45,
-        transparent: true,
-        opacity: 0.58,
-        polygonOffset: true,
-        polygonOffsetFactor: -1,
-        polygonOffsetUnits: -1
-      });
-      const snowRim = new THREE.Mesh(snowRimGeo, snowRimMat);
+      const snowRim = new THREE.Mesh(snowRimGeo, this.snowRimMat);
       snowRim.rotation.x = -Math.PI / 2;
       snowRim.position.y = 0.405;
       snowRim.receiveShadow = true;
+      snowRim.visible = this.snowCoverAmount > 0.01;
+      this.snowCoverMeshes.push(snowRim);
       hexGroup.add(snowRim);
 
       this._addTerrainProps(hexGroup, hex.terrain);
@@ -770,13 +787,14 @@ export class CatanBoard3D {
           c2.castShadow = true;
           c3.castShadow = true;
 
-          // Capuchón nevado en la copa del pino
+          // Capuchón nevado en la copa del pino (solo visible durante la Nevada)
           const snowTop = new THREE.Mesh(
             new THREE.ConeGeometry(0.24 * scale, 0.32 * scale, 7),
-            new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.45 })
+            this.snowPropMat
           );
           snowTop.position.y = 1.96 * scale;
-          snowTop.castShadow = true;
+          snowTop.visible = this.snowCoverAmount > 0.01;
+          this.snowCoverMeshes.push(snowTop);
 
           tree.add(trunk, c1, c2, c3, snowTop);
         }
@@ -856,9 +874,11 @@ export class CatanBoard3D {
 
         const moundSnow = new THREE.Mesh(
           new THREE.CylinderGeometry(t.r * 0.58, t.r * 0.72, 0.05, 7),
-          new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.5 })
+          this.snowPropMat
         );
         moundSnow.position.set(t.x, 0.38 + t.h + 0.02, t.z);
+        moundSnow.visible = this.snowCoverAmount > 0.01;
+        this.snowCoverMeshes.push(moundSnow);
         hexGroup.add(moundSnow);
       }
 
@@ -934,10 +954,11 @@ export class CatanBoard3D {
 
       const roofSnow = new THREE.Mesh(
         new THREE.ConeGeometry(0.46, 0.22, 8),
-        new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.4 })
+        this.snowPropMat
       );
       roofSnow.position.y = 2.16;
-      roofSnow.castShadow = true;
+      roofSnow.visible = this.snowCoverAmount > 0.01;
+      this.snowCoverMeshes.push(roofSnow);
 
       // Aspas giratorias del molino
       const bladesGroup = new THREE.Group();
@@ -2099,6 +2120,20 @@ export class CatanBoard3D {
         posAttr.setZ(i, posAttr.getZ(i) + Math.cos(t * d.swaySpeed + d.phase) * 0.03);
       }
       posAttr.needsUpdate = true;
+    }
+
+    // Nieve acumulada en el tablero: se va asentando de a poco al nevar (~8 s)
+    // y se derrite lentamente cuando termina la nevada (~15 s)
+    const snowTarget = this.currentTheme === 'snow' ? 1 : 0;
+    if (this.snowCoverAmount !== snowTarget) {
+      const step = snowTarget > this.snowCoverAmount ? 0.002 : 0.0011;
+      this.snowCoverAmount = snowTarget > this.snowCoverAmount
+        ? Math.min(1, this.snowCoverAmount + step)
+        : Math.max(0, this.snowCoverAmount - step);
+      this.snowRimMat.opacity = this.snowCoverAmount * 0.6;
+      this.snowPropMat.opacity = this.snowCoverAmount * 0.95;
+      const showSnow = this.snowCoverAmount > 0.01;
+      for (const m of this.snowCoverMeshes) m.visible = showSnow;
     }
 
     // 9. Transición suave de iluminación, niebla, cielo y mar al cambiar de hora/clima
