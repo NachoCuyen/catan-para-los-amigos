@@ -69,7 +69,7 @@ function getUniqueColorForRoom(existingPlayers, preferredColorId = null, exclude
 }
 
 /**
- * Disposición oficial del "Tablero para Principiantes" del reglamento de Catan.
+ * Disposición oficial del "Tablero para Principiantes" del reglamento de Catan (19 hexágonos).
  * Filas de arriba hacia abajo, hexágonos de izquierda a derecha.
  */
 const OFFICIAL_LAYOUT_ROWS = [
@@ -80,7 +80,21 @@ const OFFICIAL_LAYOUT_ROWS = [
   [['brick', 5], ['wheat', 6], ['sheep', 11]]
 ];
 
-// Puertos oficiales en orden fijo alrededor de la isla
+/**
+ * Disposición oficial del mapa XL (Extensión 5-6 jugadores, 30 hexágonos).
+ * 6 filas: 3 - 4 - 5 - 6 - 5 - 4 - 3 = 30 hexágonos (o 3-4-5-6-5-4-3 hexágonos estándar).
+ */
+const OFFICIAL_LAYOUT_ROWS_XL = [
+  [['wood', 8], ['wheat', 4], ['sheep', 3]],
+  [['wood', 9], ['brick', 5], ['sheep', 6], ['wheat', 11]],
+  [['ore', 10], ['wheat', 9], ['wood', 11], ['brick', 4], ['sheep', 8]],
+  [['desert', null], ['brick', 3], ['ore', 6], ['desert', null], ['wood', 12], ['ore', 5]],
+  [['sheep', 2], ['wood', 4], ['wheat', 10], ['sheep', 5], ['brick', 9]],
+  [['wheat', 8], ['ore', 10], ['wood', 3], ['wheat', 6]],
+  [['sheep', 12], ['brick', 11], ['ore', 2]]
+];
+
+// Puertos oficiales estándar (9 puertos)
 const OFFICIAL_PORTS = [
   { type: '3:1', ratio: 3 },
   { type: 'sheep', ratio: 2 },
@@ -93,45 +107,108 @@ const OFFICIAL_PORTS = [
   { type: 'ore', ratio: 2 }
 ];
 
+// Puertos oficiales XL (11 puertos)
+const OFFICIAL_PORTS_XL = [
+  { type: '3:1', ratio: 3 },
+  { type: 'sheep', ratio: 2 },
+  { type: '3:1', ratio: 3 },
+  { type: 'wood', ratio: 2 },
+  { type: '3:1', ratio: 3 },
+  { type: 'brick', ratio: 2 },
+  { type: 'sheep', ratio: 2 },
+  { type: '3:1', ratio: 3 },
+  { type: 'wheat', ratio: 2 },
+  { type: 'ore', ratio: 2 },
+  { type: '3:1', ratio: 3 }
+];
+
 /**
- * Genera el tablero estándar de 19 hexágonos, 54 vértices, 72 aristas y 9 puertos.
- * mapMode: 'random' (todo aleatorio) | 'official' (disposición oficial del reglamento)
+ * Genera el tablero estándar o XL.
+ * mapMode: 'random' | 'official'
+ * mapSize: 'normal' (19 hex) | 'xl' (30 hex)
  */
-function generateBoard(mapMode = 'random') {
+function generateBoard(mapMode = 'random', mapSize = 'normal') {
   const isOfficial = mapMode === 'official';
+  const isXL = mapSize === 'xl';
   const axialCoords = [];
-  for (let q = -2; q <= 2; q++) {
-    const r1 = Math.max(-2, -q - 2);
-    const r2 = Math.min(2, -q + 2);
-    for (let r = r1; r <= r2; r++) {
-      axialCoords.push({ q, r });
+
+  if (isXL) {
+    // Generación de 30 hexágonos para mapa XL (rango extendido)
+    // 7 filas de hexágonos: 3, 4, 5, 6, 5, 4, 3
+    const rowCounts = [3, 4, 5, 6, 5, 4, 3];
+    const rowRs = [-3, -2, -1, 0, 1, 2, 3];
+    rowRs.forEach((r, rIdx) => {
+      const count = rowCounts[rIdx];
+      // Para cada fila centramos q
+      const startQ = Math.floor(-count / 2) - Math.floor(r / 2);
+      for (let i = 0; i < count; i++) {
+        axialCoords.push({ q: startQ + i, r });
+      }
+    });
+  } else {
+    // Estándar 19 hexágonos
+    for (let q = -2; q <= 2; q++) {
+      const r1 = Math.max(-2, -q - 2);
+      const r2 = Math.min(2, -q + 2);
+      for (let r = r1; r <= r2; r++) {
+        axialCoords.push({ q, r });
+      }
     }
   }
 
-  // Asignación fija por coordenada para el modo oficial (fila = r, columna = orden de q)
+  // Asignación fija por coordenada para el modo oficial
   const officialByCoord = new Map();
   if (isOfficial) {
-    for (let r = -2; r <= 2; r++) {
-      const rowCoords = axialCoords.filter(c => c.r === r).sort((a, b) => a.q - b.q);
-      const rowDef = OFFICIAL_LAYOUT_ROWS[r + 2];
-      rowCoords.forEach((c, i) => {
-        officialByCoord.set(`${c.q},${c.r}`, { terrain: rowDef[i][0], number: rowDef[i][1] });
+    if (isXL) {
+      const rowRs = [-3, -2, -1, 0, 1, 2, 3];
+      rowRs.forEach((r, rIdx) => {
+        const rowCoords = axialCoords.filter(c => c.r === r).sort((a, b) => a.q - b.q);
+        const rowDef = OFFICIAL_LAYOUT_ROWS_XL[rIdx];
+        rowCoords.forEach((c, i) => {
+          if (rowDef && rowDef[i]) {
+            officialByCoord.set(`${c.q},${c.r}`, { terrain: rowDef[i][0], number: rowDef[i][1] });
+          }
+        });
       });
+    } else {
+      for (let r = -2; r <= 2; r++) {
+        const rowCoords = axialCoords.filter(c => c.r === r).sort((a, b) => a.q - b.q);
+        const rowDef = OFFICIAL_LAYOUT_ROWS[r + 2];
+        rowCoords.forEach((c, i) => {
+          officialByCoord.set(`${c.q},${c.r}`, { terrain: rowDef[i][0], number: rowDef[i][1] });
+        });
+      }
     }
   }
 
-  const terrains = shuffle([
+  const standardTerrains = [
     'wood', 'wood', 'wood', 'wood',
     'sheep', 'sheep', 'sheep', 'sheep',
     'wheat', 'wheat', 'wheat', 'wheat',
     'brick', 'brick', 'brick',
     'ore', 'ore', 'ore',
     'desert'
-  ]);
+  ];
 
-  const numberTokens = shuffle([
+  const xlTerrains = [
+    'wood', 'wood', 'wood', 'wood', 'wood', 'wood',
+    'sheep', 'sheep', 'sheep', 'sheep', 'sheep', 'sheep',
+    'wheat', 'wheat', 'wheat', 'wheat', 'wheat', 'wheat',
+    'brick', 'brick', 'brick', 'brick', 'brick',
+    'ore', 'ore', 'ore', 'ore', 'ore',
+    'desert', 'desert'
+  ];
+
+  const standardTokens = [
     2, 3, 3, 4, 4, 5, 5, 6, 6, 8, 8, 9, 9, 10, 10, 11, 11, 12
-  ]);
+  ];
+
+  const xlTokens = [
+    2, 2, 3, 3, 3, 4, 4, 4, 5, 5, 5, 6, 6, 6, 8, 8, 8, 9, 9, 9, 10, 10, 10, 11, 11, 11, 12, 12
+  ];
+
+  const terrains = shuffle(isXL ? xlTerrains : standardTerrains);
+  const numberTokens = shuffle(isXL ? xlTokens : standardTokens);
 
   const hexes = [];
   const vertexMap = new Map();
@@ -144,7 +221,7 @@ function generateBoard(mapMode = 'random') {
 
   axialCoords.forEach((coord, idx) => {
     const official = isOfficial ? officialByCoord.get(`${coord.q},${coord.r}`) : null;
-    const terrain = official ? official.terrain : terrains[idx];
+    const terrain = official ? official.terrain : terrains[idx] || 'desert';
     const x = Math.sqrt(3) * (coord.q + coord.r / 2);
     const z = 1.5 * coord.r;
     let number = null;
@@ -259,25 +336,47 @@ function generateBoard(mapMode = 'random') {
     }
   }
 
-  const portTypes = isOfficial ? OFFICIAL_PORTS : shuffle([
-    { type: '3:1', ratio: 3 },
-    { type: '3:1', ratio: 3 },
-    { type: '3:1', ratio: 3 },
-    { type: '3:1', ratio: 3 },
-    { type: 'wood', ratio: 2 },
-    { type: 'brick', ratio: 2 },
-    { type: 'sheep', ratio: 2 },
-    { type: 'wheat', ratio: 2 },
-    { type: 'ore', ratio: 2 }
-  ]);
+  let portTypes;
+  let portIndices;
 
-  const portIndices = [0, 3, 6, 10, 13, 16, 20, 23, 26];
+  if (isXL) {
+    portTypes = isOfficial ? OFFICIAL_PORTS_XL : shuffle([
+      { type: '3:1', ratio: 3 },
+      { type: '3:1', ratio: 3 },
+      { type: '3:1', ratio: 3 },
+      { type: '3:1', ratio: 3 },
+      { type: '3:1', ratio: 3 },
+      { type: 'wood', ratio: 2 },
+      { type: 'brick', ratio: 2 },
+      { type: 'sheep', ratio: 2 },
+      { type: 'sheep', ratio: 2 },
+      { type: 'wheat', ratio: 2 },
+      { type: 'ore', ratio: 2 }
+    ]);
+    // En XL hay aproximadamente 36-40 aristas costeras, distribuimos 11 puertos
+    const step = Math.floor(orderedCoastal.length / 11) || 3;
+    portIndices = Array.from({ length: 11 }, (_, i) => i * step);
+  } else {
+    portTypes = isOfficial ? OFFICIAL_PORTS : shuffle([
+      { type: '3:1', ratio: 3 },
+      { type: '3:1', ratio: 3 },
+      { type: '3:1', ratio: 3 },
+      { type: '3:1', ratio: 3 },
+      { type: 'wood', ratio: 2 },
+      { type: 'brick', ratio: 2 },
+      { type: 'sheep', ratio: 2 },
+      { type: 'wheat', ratio: 2 },
+      { type: 'ore', ratio: 2 }
+    ]);
+    portIndices = [0, 3, 6, 10, 13, 16, 20, 23, 26];
+  }
+
   const ports = [];
 
   portIndices.forEach((coastalIdx, pIdx) => {
     const edge = orderedCoastal[coastalIdx % orderedCoastal.length];
     if (!edge) return;
-    const pConfig = portTypes[pIdx];
+    const pConfig = portTypes[pIdx % portTypes.length];
     const hex = hexes[edge.hexIds[0]];
     const dx = edge.x - hex.x;
     const dz = edge.z - hex.z;
@@ -332,7 +431,23 @@ function createRoomState(roomCode, hostId, hostName, profile = {}) {
       discardLimit: 7,
       friendlyRobber: false,
       turnTimerSeconds: 90,
-      mapMode: 'random'
+      mapMode: 'random',
+      mapSize: 'normal',
+      initialSettlements: 1, // 1 (por defecto: 1 casa y 1 camino rápido) | 2 (estándar oficial: 2 casas y 2 caminos)
+      pityProduction: false, // Racha de mala suerte: si pasas 3 rondas sin cosechar, recibes 1 recurso de consuelo
+      generousBank: false, // Banca favorable: comercio 3:1 general con el banco sin necesidad de puerto
+      startingBonus: false, // Abundancia inicial: cada jugador empieza con 1 recurso de cada tipo
+      theme: 'dynamic' // 'dynamic' (por defecto: ciclo en vivo Amanecer/Día/Ocaso/Noche y tormentas) | 'day' | 'sunset' | 'night' | 'storm'
+    },
+    weather: {
+      mode: 'dynamic',
+      currentTheme: 'sunrise',
+      name: 'Amanecer',
+      icon: '🌄',
+      description: 'Amanece sobre las costas de Catan mientras se fundan los asentamientos.',
+      isStorm: false,
+      stormTurnsLeft: 0,
+      lastStormTurn: 0
     },
     turnIndex: 0,
     turnNumber: 1,
@@ -341,7 +456,7 @@ function createRoomState(roomCode, hostId, hostName, profile = {}) {
     setupStep: 0,
     lastPlacedSettlementVertexId: null,
     players: [firstPlayer],
-    board: generateBoard(),
+    board: generateBoard('random', 'normal'),
     devDeck: createDevCardDeck(),
     lastDice: null,
     lastHarvest: null,
@@ -371,6 +486,230 @@ function refreshTurnDeadline(room) {
   room.turnDeadline = secs > 0 && (room.status === 'setup' || room.status === 'playing')
     ? Date.now() + secs * 1000
     : null;
+}
+
+function getCyclePhaseBySeconds(sec) {
+  // Ciclo calibrado exactamente a los requerimientos: Total 620 segundos (10 minutos 20 segundos)
+  // 0..60s: Amanecer (1 min) | 60..390s: Pleno Día (5 min 30 seg) | 390..450s: Atardecer (1 min) | 450..620s: Noche (2 min 50 seg)
+  const s = Math.floor(Math.max(0, sec || 0) % 620);
+  if (s < 60) {
+    return {
+      theme: 'sunrise',
+      name: 'Amanecer',
+      icon: '🌄',
+      description: 'Los primeros rayos de sol iluminan las colinas y costas de Catan.',
+      log: '🌄 [Clima] Un nuevo amanecer despunta sobre las colinas de Catan.'
+    };
+  } else if (s < 390) {
+    return {
+      theme: 'day',
+      name: 'Pleno Día',
+      icon: '☀️',
+      description: 'El sol brilla en lo alto de Catan y las gaviotas surcan la bahía.',
+      log: '☀️ [Clima] Pleno día soleado en Catan: el sol brilla y las gaviotas sobrevuelan el mar.'
+    };
+  } else if (s < 450) {
+    return {
+      theme: 'sunset',
+      name: 'Atardecer',
+      icon: '🌅',
+      description: 'Cae la tarde y el sol tiñe el mar de Catan con tonos dorados y rojizos.',
+      log: '🌅 [Clima] Cae la tarde sobre Catan: el cielo se tiñe de tonos dorados y rojizos.'
+    };
+  } else {
+    return {
+      theme: 'night',
+      name: 'Noche',
+      icon: '🌙',
+      description: 'Cae la noche sobre Catan: se iluminan las antorchas y fogatas bajo las estrellas.',
+      log: '🌙 [Clima] Cae la noche en Catan: las aldeas encienden sus antorchas y fogatas bajo las estrellas.'
+    };
+  }
+}
+
+const RANDOM_WEATHER_EVENTS = [
+  {
+    type: 'snow',
+    name: 'Nevada Invernal',
+    icon: '❄️',
+    theme: 'snow',
+    description: 'Una suave nevada blanca cubre la isla con copos de nieve revoloteando en el aire.',
+    log: '❄️ [Evento Climático] ¡Comienza a nevar sobre la isla de Catan! Copos de nieve 3D cubren los bosques y colinas.',
+    duration: 48
+  },
+  {
+    type: 'storm',
+    name: 'Temporal Marino con Relámpagos',
+    icon: '⛈️',
+    theme: 'storm',
+    description: '¡Alerta de temporal! Oleaje bravo, lluvia densa y relámpagos iluminan Catan.',
+    log: '⛈️ [Evento Climático] ¡Se desata un violento temporal marino sobre Catan con fuerte lluvia y relámpagos!',
+    duration: 48
+  },
+  {
+    type: 'rain',
+    name: 'Chubasco de Lluvia',
+    icon: '🌧️',
+    theme: 'rain',
+    description: 'Una cortina de lluvia fresca y continua riega los campos y colinas de Catan.',
+    log: '🌧️ [Evento Climático] Un chubasco continuo de lluvia fresca riega los bosques y pastos de la isla.',
+    duration: 45
+  },
+  {
+    type: 'foggy',
+    name: 'Bruma Costera Mística',
+    icon: '🌫️',
+    theme: 'foggy',
+    description: 'Una densa bruma marina desciende sobre las bahías y envuelve la costa de Catan.',
+    log: '🌫️ [Evento Climático] Una densa y misteriosa bruma costera envuelve las bahías y puertos de Catan.',
+    duration: 42
+  }
+];
+
+function triggerWeatherEvent(room, forcedType = null) {
+  if (!room.weather || room.weather.activeEvent) return false;
+
+  // Filtrar para que NO repita el mismo tipo anterior consecutivamente
+  const candidates = RANDOM_WEATHER_EVENTS.filter(e => e.type !== room.weather.lastEventType);
+  const pool = candidates.length > 0 ? candidates : RANDOM_WEATHER_EVENTS;
+
+  let ev = null;
+  if (forcedType && forcedType !== room.weather.lastEventType) {
+    ev = RANDOM_WEATHER_EVENTS.find(e => e.type === forcedType);
+  }
+  if (!ev) {
+    ev = pool[Math.floor(Math.random() * pool.length)];
+  }
+  if (!ev) return false;
+
+  room.weather.activeEvent = ev.type;
+  room.weather.lastEventType = ev.type;
+  room.weather.currentTheme = ev.theme;
+  room.weather.name = ev.name;
+  room.weather.icon = ev.icon;
+  room.weather.description = ev.description;
+  room.weather.eventSecondsLeft = ev.duration;
+  addLog(room, ev.log, 'system');
+  return true;
+}
+
+function advanceWeather(room, { isRoll7 = false } = {}) {
+  if (!room.weather) {
+    room.weather = {
+      mode: 'dynamic',
+      currentTheme: 'sunrise',
+      name: 'Amanecer',
+      icon: '🌄',
+      description: 'Amanece sobre las costas de Catan.',
+      activeEvent: null,
+      lastEventType: null,
+      eventSecondsLeft: 0,
+      cycleSeconds: 0,
+      lastEventEndedAt: Date.now()
+    };
+  }
+
+  // Si la sala está configurada con un tema estático manual
+  if (room.settings?.theme && room.settings.theme !== 'dynamic') {
+    const fixedTheme = room.settings.theme;
+    room.weather.mode = 'manual';
+    room.weather.currentTheme = fixedTheme;
+    room.weather.activeEvent = null;
+    room.weather.name = fixedTheme === 'night' ? 'Noche' : fixedTheme === 'sunset' ? 'Ocaso' : fixedTheme === 'storm' ? 'Tormenta' : fixedTheme === 'sunrise' ? 'Amanecer' : 'Día';
+    room.weather.icon = fixedTheme === 'night' ? '🌙' : fixedTheme === 'sunset' ? '🌅' : fixedTheme === 'storm' ? '⛈️' : fixedTheme === 'sunrise' ? '🌄' : '☀️';
+    return;
+  }
+
+  room.weather.mode = 'dynamic';
+
+  // Si sale un 7 en los dados: Cooldown estricto de 2 minutos (120 segundos) desde que finalizó el último evento
+  const now = Date.now();
+  const timeSinceLastEvent = now - (room.weather.lastEventEndedAt || 0);
+
+  if (isRoll7 && !room.weather.activeEvent && timeSinceLastEvent >= 120000) {
+    if (Math.random() < 0.40) {
+      triggerWeatherEvent(room);
+    }
+  }
+}
+
+function tickWeatherClock(room) {
+  if (!room || room.status === 'finished') return false;
+  if (!room.weather) {
+    room.weather = {
+      mode: 'dynamic',
+      currentTheme: 'sunrise',
+      name: 'Amanecer',
+      icon: '🌄',
+      description: 'Amanece sobre las costas de Catan.',
+      activeEvent: null,
+      lastEventType: null,
+      eventSecondsLeft: 0,
+      cycleSeconds: 0,
+      lastEventEndedAt: Date.now()
+    };
+  }
+
+  // Si el anfitrión configuró un clima manual fijo
+  if (room.settings?.theme && room.settings.theme !== 'dynamic') {
+    const fixedTheme = room.settings.theme;
+    if (room.weather.currentTheme !== fixedTheme) {
+      room.weather.currentTheme = fixedTheme;
+      room.weather.activeEvent = null;
+      room.weather.name = fixedTheme === 'night' ? 'Noche' : fixedTheme === 'sunset' ? 'Ocaso' : fixedTheme === 'storm' ? 'Tormenta' : fixedTheme === 'sunrise' ? 'Amanecer' : 'Día';
+      room.weather.icon = fixedTheme === 'night' ? '🌙' : fixedTheme === 'sunset' ? '🌅' : fixedTheme === 'storm' ? '⛈️' : fixedTheme === 'sunrise' ? '🌄' : '☀️';
+      return true;
+    }
+    return false;
+  }
+
+  // En el lobby mantenemos el amanecer estático
+  if (room.status === 'lobby') {
+    return false;
+  }
+
+  // El reloj continuo del día y la noche de 620s siempre avanza cada segundo
+  room.weather.cycleSeconds = ((room.weather.cycleSeconds || 0) + 1) % 620;
+
+  // Si hay un fenómeno meteorológico activo (temporal, bruma o llovizna)
+  if (room.weather.activeEvent) {
+    room.weather.eventSecondsLeft = (room.weather.eventSecondsLeft || 1) - 1;
+    if (room.weather.eventSecondsLeft <= 0) {
+      room.weather.activeEvent = null;
+      room.weather.lastEventEndedAt = Date.now(); // Iniciar cooldown estricto de 2 minutos
+      const phase = getCyclePhaseBySeconds(room.weather.cycleSeconds || 0);
+      room.weather.currentTheme = phase.theme;
+      room.weather.name = phase.name;
+      room.weather.icon = phase.icon;
+      room.weather.description = phase.description;
+      addLog(room, '☀️ [Clima] El fenómeno meteorológico se disipa y el cielo vuelve a despejarse sobre Catan.', 'system');
+      return true;
+    }
+    return false;
+  }
+
+  // Fenómenos meteorológicos aleatorios periódicos:
+  // Cooldown estricto de 2 minutos (120 segundos) desde que finalizó el último evento
+  const now = Date.now();
+  if (!room.weather.lastEventEndedAt) room.weather.lastEventEndedAt = now;
+  const timeSinceLastEvent = now - room.weather.lastEventEndedAt;
+
+  if (timeSinceLastEvent >= 120000 && Math.random() < 0.025) {
+    return triggerWeatherEvent(room);
+  }
+
+  // Comprobar cambio de fase regular del día/noche (Amanecer 1m -> Día 5m30s -> Atardecer 1m -> Noche 2m50s)
+  const phase = getCyclePhaseBySeconds(room.weather.cycleSeconds);
+  if (room.weather.currentTheme !== phase.theme) {
+    room.weather.currentTheme = phase.theme;
+    room.weather.name = phase.name;
+    room.weather.icon = phase.icon;
+    room.weather.description = phase.description;
+    addLog(room, phase.log, 'system');
+    return true;
+  }
+
+  return false;
 }
 
 function recordPlayerProduction(room, playerId, resource, qty) {
@@ -457,23 +796,73 @@ function updateRoomSettings(room, playerId, settings = {}) {
   if (typeof settings.friendlyRobber === 'boolean') {
     room.settings.friendlyRobber = settings.friendlyRobber;
   }
+  if (typeof settings.pityProduction === 'boolean') {
+    room.settings.pityProduction = settings.pityProduction;
+  }
+  if (typeof settings.generousBank === 'boolean') {
+    room.settings.generousBank = settings.generousBank;
+  }
+  if (typeof settings.startingBonus === 'boolean') {
+    room.settings.startingBonus = settings.startingBonus;
+  }
+  if (['dynamic', 'day', 'sunset', 'night', 'storm'].includes(settings.theme)) {
+    if (room.settings.theme !== settings.theme) {
+      room.settings.theme = settings.theme;
+      advanceWeather(room);
+      addLog(
+        room,
+        settings.theme === 'dynamic'
+          ? '🌅 Atmósfera 3D configurada en modo Dinámico (Ciclo Día/Noche en vivo y tormentas).'
+          : `🌅 Atmósfera 3D fijada en: ${settings.theme.toUpperCase()}.`,
+        'system'
+      );
+    }
+  }
+  if ([1, 2].includes(Number(settings.initialSettlements))) {
+    const val = Number(settings.initialSettlements);
+    if (room.settings.initialSettlements !== val) {
+      room.settings.initialSettlements = val;
+      addLog(
+        room,
+        val === 1
+          ? '⚡ Fase Inicial configurada en Rápida: Solo 1 poblado y 1 camino por jugador (da recursos directos).'
+          : '🔄 Fase Inicial configurada en Estándar Oficial: 2 poblados y 2 caminos (segundo poblado da recursos).',
+        'system'
+      );
+    }
+  }
+  let boardNeedsUpdate = false;
   if (['random', 'official'].includes(settings.mapMode) && settings.mapMode !== room.settings.mapMode) {
     room.settings.mapMode = settings.mapMode;
-    room.board = generateBoard(room.settings.mapMode);
+    boardNeedsUpdate = true;
     addLog(
       room,
       room.settings.mapMode === 'official'
-        ? '🗺️ Mapa cambiado a la Disposición Oficial del reglamento de Catan.'
-        : '🎲 Mapa cambiado a modo Aleatorio.',
+        ? '🗺️ Tipo de mapa cambiado a Disposición Oficial (Reglamento).'
+        : '🎲 Tipo de mapa cambiado a Aleatorio.',
       'system'
     );
   }
+  if (['normal', 'xl'].includes(settings.mapSize) && settings.mapSize !== room.settings.mapSize) {
+    room.settings.mapSize = settings.mapSize;
+    boardNeedsUpdate = true;
+    addLog(
+      room,
+      room.settings.mapSize === 'xl'
+        ? '🏝️ Tamaño del mapa cambiado a XL (30 Hexágonos - Extensión).'
+        : '🏝️ Tamaño del mapa cambiado a Normal (19 Hexágonos - Clásico).',
+      'system'
+    );
+  }
+  if (boardNeedsUpdate) {
+    room.board = generateBoard(room.settings.mapMode, room.settings.mapSize);
+  }
   if (settings.regenerateBoard) {
     if (room.settings.mapMode === 'official') {
-      return { error: 'El mapa oficial siempre es igual. Cambia a modo Aleatorio para generar una isla nueva.' };
+      return { error: 'El mapa oficial siempre tiene la misma disposición. Cambia a modo Aleatorio para generar una isla nueva.' };
     }
-    room.board = generateBoard('random');
-    addLog(room, `🗺️ El anfitrión generó un nuevo mapa aleatorio para la isla.`, 'system');
+    room.board = generateBoard('random', room.settings.mapSize);
+    addLog(room, `🗺️ El anfitrión generó un nuevo mapa aleatorio para la isla (${room.settings.mapSize.toUpperCase()}).`, 'system');
   }
   return { ok: true };
 }
@@ -505,7 +894,8 @@ function deductResources(player, cost) {
 }
 
 function getPlayerTradeRatios(room, playerId) {
-  const ratios = { wood: 4, brick: 4, sheep: 4, wheat: 4, ore: 4 };
+  const baseRatio = room.settings?.generousBank ? 3 : 4;
+  const ratios = { wood: baseRatio, brick: baseRatio, sheep: baseRatio, wheat: baseRatio, ore: baseRatio };
   for (const v of room.board.vertices) {
     if (v.building && v.building.playerId === playerId && v.port) {
       if (v.port.type === '3:1') {
@@ -728,15 +1118,33 @@ function startGame(room) {
     producedByPlayer: {}
   };
 
+  if (room.settings?.startingBonus) {
+    for (const p of room.players) {
+      for (const res of RESOURCES) {
+        p.resources[res] = (p.resources[res] || 0) + 1;
+        recordPlayerProduction(room, p.id, res, 1);
+      }
+    }
+    addLog(room, `🎒 Regla de Abundancia Inicial activada: ¡Todos los jugadores reciben 1 recurso de cada tipo para comenzar!`, 'system');
+  }
+
   const n = room.players.length;
   const forward = Array.from({ length: n }, (_, i) => i);
-  const backward = [...forward].reverse();
-  room.setupOrder = [...forward, ...backward];
+  const isSingleSetup = Number(room.settings?.initialSettlements) === 1;
+
+  if (isSingleSetup) {
+    room.setupOrder = [...forward];
+    addLog(room, `🎲 ¡Comienza la partida! Ronda Inicial Rápida: Solo 1 poblado y 1 camino por jugador (da recursos directos).`, 'system');
+  } else {
+    const backward = [...forward].reverse();
+    room.setupOrder = [...forward, ...backward];
+    addLog(room, `🎲 ¡Comienza la partida! Ronda Inicial 1 de 2 (Orden de ida: 1° al ${n}° jugador).`, 'system');
+  }
   room.setupStep = 0;
   room.turnIndex = room.setupOrder[0];
   refreshTurnDeadline(room);
+  advanceWeather(room);
 
-  addLog(room, `🎲 ¡Comienza la partida! Ronda Inicial 1 de 2 (Orden de ida: 1° al ${n}° jugador).`, 'system');
   return { ok: true };
 }
 
@@ -777,7 +1185,10 @@ function placeSettlement(room, playerId, vertexId) {
     room.lastPlacedSettlementVertexId = vertexId;
     room.phase = 'setup_road';
 
-    if (room.setupStep >= room.players.length) {
+    const isSingleSetup = Number(room.settings?.initialSettlements) === 1;
+    const givesInitialResources = isSingleSetup || room.setupStep >= room.players.length;
+
+    if (givesInitialResources) {
       const gained = [];
       const harvestItems = [];
       for (const hId of vertex.hexIds) {
@@ -802,10 +1213,11 @@ function placeSettlement(room, playerId, vertexId) {
           items: harvestItems
         };
       }
+      const roundLabel = isSingleSetup ? 'su poblado inicial' : 'su 2° poblado';
       if (gained.length > 0) {
-        addLog(room, `🏠 ${activePlayer.name} colocó su 2° poblado y recibió recursos iniciales: ${gained.join(', ')}.`, 'build');
+        addLog(room, `🏠 ${activePlayer.name} colocó ${roundLabel} y recibió recursos iniciales: ${gained.join(', ')}.`, 'build');
       } else {
-        addLog(room, `🏠 ${activePlayer.name} colocó su 2° poblado.`, 'build');
+        addLog(room, `🏠 ${activePlayer.name} colocó ${roundLabel}.`, 'build');
       }
     } else {
       addLog(room, `🏠 ${activePlayer.name} colocó su 1° poblado.`, 'build');
@@ -856,7 +1268,7 @@ function placeRoad(room, playerId, edgeId) {
   if (isSetup) {
     room.lastPlacedSettlementVertexId = null;
     room.setupStep += 1;
-    if (room.setupStep === room.players.length) {
+    if (room.setupStep === room.players.length && room.setupOrder.length > room.players.length) {
       addLog(
         room,
         `🔄 Ronda Inicial 2 de 2 (Orden Inverso Oficial de Catan): ${activePlayer.name} repite turno para colocar su 2° poblado y recibir sus recursos iniciales.`,
@@ -868,6 +1280,7 @@ function placeRoad(room, playerId, edgeId) {
       room.phase = 'roll';
       room.turnIndex = 0;
       refreshTurnDeadline(room);
+      advanceWeather(room);
       addLog(room, `🎉 ¡Fase de Fundación completada! Turno de ${room.players[0].name} para tirar los dados.`, 'system');
     } else {
       room.turnIndex = room.setupOrder[room.setupStep];
@@ -937,6 +1350,7 @@ function rollDice(room, playerId) {
   if (sum === 7) {
     const limit = room.settings?.discardLimit || 7;
     addLog(room, `🎲 ${activePlayer.name} sacó un 7 (${d1} + ${d2}). ¡Se activa el Ladrón!`, 'robber');
+    advanceWeather(room, { isRoll7: true });
     room.pendingDiscards = {};
     for (const p of room.players) {
       const total = getTotalResources(p);
@@ -975,6 +1389,26 @@ function rollDice(room, playerId) {
               });
             }
           }
+        }
+      }
+    }
+
+    // Regla opcional: Compensación por Mala Suerte (Pity Production)
+    if (room.settings?.pityProduction) {
+      for (const p of room.players) {
+        if (!gainsByPlayer[p.name]) {
+          // El jugador no recibió ningún recurso con esta tirada
+          p.consecutiveNoHarvest = (p.consecutiveNoHarvest || 0) + 1;
+          if (p.consecutiveNoHarvest >= 3) {
+            p.consecutiveNoHarvest = 0;
+            // Se le entrega 1 recurso al azar del banco como consuelo
+            const randomRes = RESOURCES[Math.floor(Math.random() * RESOURCES.length)];
+            p.resources[randomRes] += 1;
+            recordPlayerProduction(room, p.id, randomRes, 1);
+            addLog(room, `🍀 ¡Compensación de Mala Suerte! ${p.name} llevaba 3 rondas sin cosechar y recibe 1 ${RESOURCE_NAMES_ES[randomRes]}.`, 'system');
+          }
+        } else {
+          p.consecutiveNoHarvest = 0;
         }
       }
     }
@@ -1370,6 +1804,7 @@ function endTurn(room, playerId) {
   room.turnNumber += 1;
   room.phase = 'roll';
   refreshTurnDeadline(room);
+  advanceWeather(room, { isTurnEnd: true });
 
   const nextPlayer = room.players[room.turnIndex];
   nextPlayer.playedDevCardThisTurn = false;
@@ -1609,7 +2044,7 @@ function resetRoomForRematch(room, requesterId) {
   room.setupOrder = [];
   room.setupStep = 0;
   room.lastPlacedSettlementVertexId = null;
-  room.board = generateBoard(room.settings?.mapMode || 'random');
+  room.board = generateBoard(room.settings?.mapMode || 'random', room.settings?.mapSize || 'normal');
   room.devDeck = createDevCardDeck();
   room.lastDice = null;
   room.lastHarvest = null;
@@ -1730,7 +2165,14 @@ function serializeRoomForPlayer(room, viewerId) {
       };
     }),
     logs: room.logs,
-    chat: room.chat
+    chat: room.chat,
+    weather: room.weather || {
+      mode: room.settings?.theme || 'dynamic',
+      currentTheme: 'sunrise',
+      name: 'Amanecer',
+      icon: '🌄',
+      description: 'Amanece sobre las costas de Catan.'
+    }
   };
 }
 
@@ -1764,6 +2206,7 @@ module.exports = {
   endTurn,
   runBotStep,
   handleTurnTimeout,
+  tickWeatherClock,
   resetRoomForRematch,
   serializeRoomForPlayer
 };

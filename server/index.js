@@ -454,10 +454,17 @@ io.on('connection', (socket) => {
   });
 });
 
-// Reloj de turno en el servidor (Anti-AFK cuando el contador llega a 00:00)
+// Reloj de turno en el servidor (Anti-AFK) y reloj de clima dinámico (ciclo día/noche y eventos)
 setInterval(() => {
   for (const room of rooms.values()) {
+    let stateChanged = false;
     if (engine.handleTurnTimeout(room)) {
+      stateChanged = true;
+    }
+    if (engine.tickWeatherClock(room)) {
+      stateChanged = true;
+    }
+    if (stateChanged) {
       broadcastRoomState(room);
       scheduleBotIfNeeded(room);
     }

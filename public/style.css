@@ -370,6 +370,27 @@ input[type="text"]:focus, select:focus {
   gap: 6px;
 }
 
+.theme-switcher .theme-btn[data-theme="dynamic"] {
+  grid-column: 1 / -1;
+  padding: 9px 12px;
+  font-size: 12px;
+  font-weight: 800;
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px dashed rgba(245, 158, 11, 0.45);
+  color: #fef08a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.theme-switcher .theme-btn[data-theme="dynamic"].active {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.32), rgba(217, 119, 6, 0.48));
+  border: 1.5px solid var(--gold);
+  color: #ffffff;
+  box-shadow: 0 0 14px rgba(245, 158, 11, 0.28);
+}
+
 .theme-btn {
   padding: 7px 6px;
   border-radius: 8px;
@@ -379,12 +400,81 @@ input[type="text"]:focus, select:focus {
   font-size: 11.5px;
   font-weight: 700;
   cursor: pointer;
+  transition: all 0.15s ease;
 }
 
 .theme-btn.active {
   background: rgba(245, 158, 11, 0.25);
   border-color: var(--gold-light);
   color: #fff;
+}
+
+/* BOTÓN DESTACADO PARA ABRIR REGLAS AVANZADAS */
+.rules-cta-container {
+  margin-top: 8px;
+  padding-top: 10px;
+  border-top: 1px dashed rgba(245, 158, 11, 0.3);
+}
+
+.btn-rules-cta {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.16), rgba(180, 83, 9, 0.28));
+  border: 1.5px solid var(--gold);
+  border-radius: 12px;
+  color: #fff;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 14px rgba(245, 158, 11, 0.12);
+}
+
+.btn-rules-cta:hover {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.28), rgba(217, 119, 6, 0.42));
+  border-color: #fde047;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(245, 158, 11, 0.26);
+}
+
+.btn-rules-cta .cta-icon {
+  font-size: 24px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.btn-rules-cta .cta-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.btn-rules-cta .cta-title {
+  font-size: 13.5px;
+  font-weight: 800;
+  color: var(--gold-light);
+  letter-spacing: 0.3px;
+}
+
+.btn-rules-cta .cta-desc {
+  font-size: 11px;
+  color: #cbd5e1;
+  margin-top: 2px;
+  line-height: 1.35;
+  font-weight: 400;
+}
+
+.btn-rules-cta .cta-arrow {
+  font-size: 16px;
+  color: var(--gold);
+  flex-shrink: 0;
+  transition: transform 0.2s;
+}
+
+.btn-rules-cta:hover .cta-arrow {
+  transform: translateX(4px);
 }
 
 .btn {

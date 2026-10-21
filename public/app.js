@@ -39,13 +39,19 @@ const PIECE_STYLES = [
   { id: 'oriental', name: '⛩️ Dinastía Oriental' }
 ];
 
-const THEMES_ORDER = ['day', 'sunset', 'night', 'storm'];
+const THEMES_ORDER = ['dynamic', 'day', 'sunset', 'night', 'storm'];
 const THEME_NAMES = {
+  dynamic: '🔄 Dinámico',
+  sunrise: '🌄 Amanecer',
   day: '☀️ Día',
   sunset: '🌅 Ocaso',
   night: '🌙 Noche',
-  storm: '⛈️ Tormenta'
+  storm: '⛈️ Tormenta',
+  snow: '❄️ Nevada',
+  foggy: '🌫️ Niebla',
+  rain: '🌧️ Llovizna'
 };
+let lastAnnouncedWeatherTheme = null;
 
 // Estado local del cliente (sessionStorage por pestaña para permitir varias pestañas y reconexión F5)
 let myPlayerId = sessionStorage.getItem('catan_player_id');
@@ -563,47 +569,100 @@ document.getElementById('setting-vp').addEventListener('change', (e) => {
   socket.emit('update_settings', { vpToWin: Number(e.target.value) });
 });
 
-document.getElementById('setting-discard').addEventListener('change', (e) => {
-  socket.emit('update_settings', { discardLimit: Number(e.target.value) });
-});
-
 document.getElementById('setting-timer')?.addEventListener('change', (e) => {
   socket.emit('update_settings', { turnTimerSeconds: Number(e.target.value) });
 });
 
-document.getElementById('setting-friendly-robber').addEventListener('change', (e) => {
+// Modal de Reglas Avanzadas de Partida (Casas iniciales, Ladrón amistoso, Límite descarte)
+const rulesModal = document.getElementById('game-rules-modal');
+document.getElementById('btn-open-rules-modal')?.addEventListener('click', () => {
+  if (rulesModal) rulesModal.classList.remove('hidden');
+});
+document.getElementById('btn-close-rules-modal')?.addEventListener('click', () => {
+  if (rulesModal) rulesModal.classList.add('hidden');
+});
+document.getElementById('btn-save-rules-modal')?.addEventListener('click', () => {
+  if (rulesModal) rulesModal.classList.add('hidden');
+});
+
+document.getElementById('modal-setting-initial')?.addEventListener('change', (e) => {
+  socket.emit('update_settings', { initialSettlements: Number(e.target.value) });
+});
+document.getElementById('modal-setting-discard')?.addEventListener('change', (e) => {
+  socket.emit('update_settings', { discardLimit: Number(e.target.value) });
+});
+document.getElementById('modal-setting-friendly-robber')?.addEventListener('change', (e) => {
   socket.emit('update_settings', { friendlyRobber: e.target.checked });
+});
+document.getElementById('modal-setting-pity-production')?.addEventListener('change', (e) => {
+  socket.emit('update_settings', { pityProduction: e.target.checked });
+});
+document.getElementById('modal-setting-generous-bank')?.addEventListener('change', (e) => {
+  socket.emit('update_settings', { generousBank: e.target.checked });
+});
+document.getElementById('modal-setting-starting-bonus')?.addEventListener('change', (e) => {
+  socket.emit('update_settings', { startingBonus: e.target.checked });
 });
 
 document.getElementById('setting-map-mode')?.addEventListener('change', (e) => {
   socket.emit('update_settings', { mapMode: e.target.value }, (res) => {
     if (res?.error) return showToast(res.error);
     showToast(e.target.value === 'official'
-      ? '📜 Mapa Oficial del reglamento cargado'
-      : '🎲 Mapa Aleatorio generado');
+      ? '📜 Mapa Original/Oficial cargado'
+      : '🎲 Mapa Aleatorio cargado');
+  });
+});
+
+document.getElementById('setting-map-size')?.addEventListener('change', (e) => {
+  socket.emit('update_settings', { mapSize: e.target.value }, (res) => {
+    if (res?.error) return showToast(res.error);
+    showToast(e.target.value === 'xl'
+      ? '🌋 Tamaño de mapa cambiado a XL (30 Hexágonos)'
+      : '⛵ Tamaño de mapa cambiado a Normal (19 Hexágonos)');
   });
 });
 
 document.querySelectorAll('.theme-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     const theme = btn.dataset.theme;
-    currentThemeIndex = THEMES_ORDER.indexOf(theme);
-    applyTheme(theme);
+    applyTheme(theme, true);
   });
 });
 
-document.getElementById('btn-cycle-theme').addEventListener('click', () => {
-  currentThemeIndex = (currentThemeIndex + 1) % THEMES_ORDER.length;
-  const theme = THEMES_ORDER[currentThemeIndex];
-  applyTheme(theme);
+document.getElementById('btn-cycle-theme')?.addEventListener('click', () => {
+  const currentSetting = roomState?.settings?.theme || 'dynamic';
+  let idx = THEMES_ORDER.indexOf(currentSetting);
+  if (idx === -1) idx = 0;
+  idx = (idx + 1) % THEMES_ORDER.length;
+  const nextTheme = THEMES_ORDER[idx];
+  applyTheme(nextTheme, true);
 });
 
-function applyTheme(theme) {
-  board3D.setTheme(theme);
+function applyTheme(theme, isUserAction = false) {
+  const currentMode = theme === 'dynamic' ? 'dynamic' : theme;
+
+  if (isUserAction) {
+    socket.emit('update_settings', { theme: currentMode }, (res) => {
+      if (res?.error) showToast(res.error);
+    });
+  }
+
   document.querySelectorAll('.theme-btn').forEach(b => {
-    b.classList.toggle('active', b.dataset.theme === theme);
+    b.classList.toggle('active', b.dataset.theme === currentMode);
   });
-  document.getElementById('btn-cycle-theme').textContent = THEME_NAMES[theme] || '☀️ Clima';
+
+  if (currentMode === 'dynamic') {
+    const activeWeather = roomState?.weather?.currentTheme || 'sunrise';
+    board3D.setTheme(activeWeather, true);
+    const wIcon = roomState?.weather?.icon || '🌄';
+    const wName = roomState?.weather?.name || 'Amanecer';
+    const cycleBtn = document.getElementById('btn-cycle-theme');
+    if (cycleBtn) cycleBtn.textContent = `🔄 ${wIcon} ${wName}`;
+  } else {
+    board3D.setTheme(currentMode, true);
+    const cycleBtn = document.getElementById('btn-cycle-theme');
+    if (cycleBtn) cycleBtn.textContent = THEME_NAMES[currentMode] || '☀️ Clima';
+  }
 }
 
 document.getElementById('btn-add-bot').addEventListener('click', () => {
@@ -776,6 +835,41 @@ socket.on('room_state', (state) => {
 function refreshUI() {
   if (!roomState) return;
 
+  // Sincronización continua del Clima y Atmósfera 3D (activa tanto en Lobby como In-Game)
+  const activeTheme = roomState.settings?.theme || 'dynamic';
+  document.querySelectorAll('.theme-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.theme === activeTheme);
+    b.disabled = roomState.hostId !== myPlayerId;
+  });
+
+  if (roomState.weather) {
+    if (activeTheme === 'dynamic') {
+      const targetWeather = roomState.weather.currentTheme || 'sunrise';
+      board3D.setTheme(targetWeather, true);
+
+      if (roomState.status !== 'lobby' && targetWeather !== lastAnnouncedWeatherTheme) {
+        const icon = roomState.weather.icon || '🌤️';
+        const name = roomState.weather.name || 'Clima';
+        const desc = roomState.weather.description || '';
+        showToast(`${icon} Clima en Catan: ¡${name}! ${desc}`, 5000);
+        lastAnnouncedWeatherTheme = targetWeather;
+      }
+
+      const cycleBtn = document.getElementById('btn-cycle-theme');
+      if (cycleBtn) {
+        cycleBtn.textContent = `🔄 ${roomState.weather.icon || '🌄'} ${roomState.weather.name || 'Dinámico'}`;
+        cycleBtn.title = `Clima Dinámico en vivo: ${roomState.weather.name} (${roomState.weather.description || ''})`;
+      }
+    } else {
+      board3D.setTheme(activeTheme, true);
+      const cycleBtn = document.getElementById('btn-cycle-theme');
+      if (cycleBtn) {
+        cycleBtn.textContent = THEME_NAMES[activeTheme] || '☀️ Clima';
+        cycleBtn.title = `Atmósfera fija: ${THEME_NAMES[activeTheme]}`;
+      }
+    }
+  }
+
   const lobbyOverlay = document.getElementById('lobby-overlay');
   const gameHud = document.getElementById('game-hud');
 
@@ -827,23 +921,62 @@ function refreshUI() {
 
     if (roomState.settings) {
       const vpSel = document.getElementById('setting-vp');
-      const discSel = document.getElementById('setting-discard');
       const timerSel = document.getElementById('setting-timer');
-      const frChk = document.getElementById('setting-friendly-robber');
-      vpSel.value = String(roomState.settings.vpToWin || 10);
-      discSel.value = String(roomState.settings.discardLimit || 7);
+      const mapSel = document.getElementById('setting-map-mode');
+      const mapSizeSel = document.getElementById('setting-map-size');
+      const modalInitSel = document.getElementById('modal-setting-initial');
+      const modalDiscSel = document.getElementById('modal-setting-discard');
+      const modalFrChk = document.getElementById('modal-setting-friendly-robber');
+
+      if (vpSel) {
+        vpSel.value = String(roomState.settings.vpToWin || 10);
+        vpSel.disabled = !isHost;
+      }
       if (timerSel) {
         timerSel.value = String(roomState.settings.turnTimerSeconds ?? 90);
         timerSel.disabled = !isHost;
       }
-      frChk.checked = Boolean(roomState.settings.friendlyRobber);
-      vpSel.disabled = !isHost;
-      discSel.disabled = !isHost;
-      frChk.disabled = !isHost;
-      const mapSel = document.getElementById('setting-map-mode');
       if (mapSel) {
         mapSel.value = roomState.settings.mapMode || 'random';
         mapSel.disabled = !isHost;
+      }
+      if (mapSizeSel) {
+        mapSizeSel.value = roomState.settings.mapSize || 'normal';
+        mapSizeSel.disabled = !isHost;
+      }
+      if (modalInitSel) {
+        modalInitSel.value = String(roomState.settings.initialSettlements ?? 1);
+        modalInitSel.disabled = !isHost;
+      }
+      if (modalDiscSel) {
+        modalDiscSel.value = String(roomState.settings.discardLimit || 7);
+        modalDiscSel.disabled = !isHost;
+      }
+      if (modalFrChk) {
+        modalFrChk.checked = Boolean(roomState.settings.friendlyRobber);
+        modalFrChk.disabled = !isHost;
+      }
+      const modalPityChk = document.getElementById('modal-setting-pity-production');
+      if (modalPityChk) {
+        modalPityChk.checked = Boolean(roomState.settings.pityProduction);
+        modalPityChk.disabled = !isHost;
+      }
+      const modalGenBankChk = document.getElementById('modal-setting-generous-bank');
+      if (modalGenBankChk) {
+        modalGenBankChk.checked = Boolean(roomState.settings.generousBank);
+        modalGenBankChk.disabled = !isHost;
+      }
+      const modalStartBonusChk = document.getElementById('modal-setting-starting-bonus');
+      if (modalStartBonusChk) {
+        modalStartBonusChk.checked = Boolean(roomState.settings.startingBonus);
+        modalStartBonusChk.disabled = !isHost;
+      }
+      const openRulesBtn = document.getElementById('btn-open-rules-modal');
+      if (openRulesBtn) {
+        const titleEl = openRulesBtn.querySelector('.cta-title');
+        if (titleEl) {
+          titleEl.textContent = isHost ? 'Reglas Avanzadas y Modos de Juego...' : 'Ver Reglas y Modos de la Partida';
+        }
       }
     }
 

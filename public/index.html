@@ -181,13 +181,21 @@
 
           <!-- Columna Derecha: Reglas de la Partida y Ambiente -->
           <div class="lobby-col">
-            <h3 class="section-heading">⚙️ Reglas de la Partida</h3>
+            <h3 class="section-heading" style="margin-bottom:10px;">⚙️ Configuración de Partida</h3>
             <div class="rules-box">
               <div class="rule-item">
-                <label>🗺️ Modo del Mapa</label>
+                <label>🗺️ Tipo de Mapa</label>
                 <select id="setting-map-mode">
-                  <option value="random" selected>🎲 Aleatorio (isla distinta cada vez)</option>
-                  <option value="official">📜 Oficial (disposición del reglamento)</option>
+                  <option value="random" selected>🎲 Aleatorio (isla diferente cada vez)</option>
+                  <option value="official">📜 Original / Oficial (reglamento de Catan)</option>
+                </select>
+              </div>
+
+              <div class="rule-item">
+                <label>🏝️ Tamaño de la Isla</label>
+                <select id="setting-map-size">
+                  <option value="normal" selected>⛵ Normal (19 Hexágonos - Estándar)</option>
+                  <option value="xl">🌋 XL (30 Hexágonos - Mapa Extendido)</option>
                 </select>
               </div>
 
@@ -202,15 +210,6 @@
               </div>
 
               <div class="rule-item">
-                <label>🥷 Límite de Cartas (Ladrón 7)</label>
-                <select id="setting-discard">
-                  <option value="7" selected>7 Cartas (Clásico)</option>
-                  <option value="9">9 Cartas (Intermedio)</option>
-                  <option value="12">12 Cartas (Relajado)</option>
-                </select>
-              </div>
-
-              <div class="rule-item">
                 <label>⏱️ Reloj por Turno</label>
                 <select id="setting-timer">
                   <option value="60">60 seg (Rápido)</option>
@@ -220,21 +219,29 @@
                 </select>
               </div>
 
-              <div class="rule-item checkbox-rule">
-                <label>
-                  <input type="checkbox" id="setting-friendly-robber" />
-                  🛡️ Ladrón Amistoso (No bloquea a jugadores con 2 PV)
-                </label>
-              </div>
-
               <div class="rule-item">
                 <label>🌅 Atmósfera 3D de la Isla</label>
                 <div class="theme-switcher">
-                  <button class="theme-btn active" data-theme="day">☀️ Día</button>
-                  <button class="theme-btn" data-theme="sunset">🌅 Ocaso</button>
-                  <button class="theme-btn" data-theme="night">🌙 Noche</button>
-                  <button class="theme-btn" data-theme="storm">⛈️ Tormenta</button>
+                  <button type="button" class="theme-btn active" data-theme="dynamic" title="Ciclo dinámico en vivo: amanece, es de día, atardece, es de noche y eventos climáticos">
+                    🔄 Dinámico (Ciclo Día/Noche y Eventos)
+                  </button>
+                  <button type="button" class="theme-btn" data-theme="day">☀️ Día</button>
+                  <button type="button" class="theme-btn" data-theme="sunset">🌅 Ocaso</button>
+                  <button type="button" class="theme-btn" data-theme="night">🌙 Noche</button>
+                  <button type="button" class="theme-btn" data-theme="storm">⛈️ Tormenta</button>
                 </div>
+              </div>
+
+              <!-- BOTÓN VISIBLE Y DESTACADO AL FONDO DE LA SECCIÓN -->
+              <div class="rules-cta-container">
+                <button type="button" id="btn-open-rules-modal" class="btn btn-rules-cta" title="Personalizar reglas especiales y modos de juego">
+                  <div class="cta-icon">⚙️</div>
+                  <div class="cta-content">
+                    <span class="cta-title">Reglas Avanzadas y Modos de Juego...</span>
+                    <span class="cta-desc">1 o 2 casas al inicio, Ladrón Amistoso, Compensación de mala suerte, Comercio...</span>
+                  </div>
+                  <div class="cta-arrow">➜</div>
+                </button>
               </div>
             </div>
           </div>
@@ -555,6 +562,93 @@
             <li><strong>2:1 Puerto Especializado (🌲🧱🐑🌾⛰️):</strong> Si tienes ese puerto, entregas solo 2 de ese recurso específico por 1 cualquiera.</li>
           </ul>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Configuración Avanzada de Reglas de Juego (Personalización del Anfitrión) -->
+  <div id="game-rules-modal" class="modal hidden">
+    <div class="modal-content" style="max-width:540px;">
+      <div class="modal-header">
+        <h2 class="cinzel-title">⚙️ Reglas Avanzadas de Partida</h2>
+        <button id="btn-close-rules-modal" class="btn-close">✕</button>
+      </div>
+
+      <div class="custom-rules-form" style="display:flex;flex-direction:column;gap:14px;margin-top:14px;">
+        <div class="rule-item">
+          <label>🏠 Casas y Caminos al Iniciar (Fase de Fundación)</label>
+          <select id="modal-setting-initial">
+            <option value="1" selected>⚡ 1 Poblado y 1 Camino (Partida Rápida - Por Defecto)</option>
+            <option value="2">🔄 2 Poblados y 2 Caminos (Reglamento Oficial Catan)</option>
+          </select>
+          <p style="font-size:11.5px;color:var(--text-muted);margin-top:4px;">
+            Con 1 casa la fase inicial termina mucho más rápido y ya arrancan tirando dados. Con 2 casas sigue el orden oficial de ida y vuelta.
+          </p>
+        </div>
+
+        <div class="rule-item">
+          <label>🥷 Límite de Cartas en Mano (por el Ladrón cuando sale 7)</label>
+          <select id="modal-setting-discard">
+            <option value="7" selected>7 Cartas (Clásico oficial)</option>
+            <option value="9">9 Cartas (Intermedio)</option>
+            <option value="12">12 Cartas (Relajado)</option>
+          </select>
+          <p style="font-size:11.5px;color:var(--text-muted);margin-top:4px;">
+            Quien supere este número de cartas al salir un 7 debe descartar la mitad.
+          </p>
+        </div>
+
+        <div class="rule-item checkbox-rule" style="background:rgba(255,255,255,0.03);padding:10px 12px;border-radius:10px;border:1px solid var(--border-glass);">
+          <label style="cursor:pointer;display:flex;align-items:flex-start;gap:10px;font-size:13px;font-weight:700;">
+            <input type="checkbox" id="modal-setting-friendly-robber" style="width:18px;height:18px;margin-top:2px;" />
+            <div>
+              <span>🛡️ Ladrón Amistoso</span>
+              <p style="font-size:11.5px;color:var(--text-muted);font-weight:normal;margin-top:2px;">
+                No se puede bloquear ni robar a jugadores que aún tengan 2 Puntos de Victoria. Protege a quienes van rezagados al inicio.
+              </p>
+            </div>
+          </label>
+        </div>
+
+        <div class="rule-item checkbox-rule" style="background:rgba(255,255,255,0.03);padding:10px 12px;border-radius:10px;border:1px solid var(--border-glass);">
+          <label style="cursor:pointer;display:flex;align-items:flex-start;gap:10px;font-size:13px;font-weight:700;">
+            <input type="checkbox" id="modal-setting-pity-production" style="width:18px;height:18px;margin-top:2px;" />
+            <div>
+              <span>🍀 Compensación por Mala Suerte (Seguro Antifrustration)</span>
+              <p style="font-size:11.5px;color:var(--text-muted);font-weight:normal;margin-top:2px;">
+                Si pasas 3 tiradas seguidas de dados sin cosechar ningún recurso de la isla, el banco te regala 1 recurso de consuelo al azar.
+              </p>
+            </div>
+          </label>
+        </div>
+
+        <div class="rule-item checkbox-rule" style="background:rgba(255,255,255,0.03);padding:10px 12px;border-radius:10px;border:1px solid var(--border-glass);">
+          <label style="cursor:pointer;display:flex;align-items:flex-start;gap:10px;font-size:13px;font-weight:700;">
+            <input type="checkbox" id="modal-setting-generous-bank" style="width:18px;height:18px;margin-top:2px;" />
+            <div>
+              <span>⛵ Comercio Bancario Favorable (3:1 General)</span>
+              <p style="font-size:11.5px;color:var(--text-muted);font-weight:normal;margin-top:2px;">
+                Todos los jugadores pueden comerciar con el banco entregando 3 recursos iguales en vez de 4. (Los puertos de 2:1 siguen dando ventaja 2:1).
+              </p>
+            </div>
+          </label>
+        </div>
+
+        <div class="rule-item checkbox-rule" style="background:rgba(255,255,255,0.03);padding:10px 12px;border-radius:10px;border:1px solid var(--border-glass);">
+          <label style="cursor:pointer;display:flex;align-items:flex-start;gap:10px;font-size:13px;font-weight:700;">
+            <input type="checkbox" id="modal-setting-starting-bonus" style="width:18px;height:18px;margin-top:2px;" />
+            <div>
+              <span>🎒 Abundancia Inicial (Bonus de Arranque)</span>
+              <p style="font-size:11.5px;color:var(--text-muted);font-weight:normal;margin-top:2px;">
+                Al empezar la partida, cada jugador recibe 1 recurso de cada tipo (Madera, Ladrillo, Oveja, Trigo, Piedra) para comenzar construyendo a tope.
+              </p>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <div class="modal-footer" style="margin-top:18px;display:flex;justify-content:flex-end;">
+        <button id="btn-save-rules-modal" class="btn btn-primary">Listo / Guardar Reglas</button>
       </div>
     </div>
   </div>

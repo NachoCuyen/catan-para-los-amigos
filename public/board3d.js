@@ -5,7 +5,21 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 const SCALE = 4.2;
 
 const THEMES = {
+  sunrise: {
+    name: 'Amanecer',
+    sky: 0x22132d,
+    fog: 0x22132d,
+    oceanDeep: 0x1e1b4b,
+    oceanShallow: 0xdb2777,
+    ambientColor: 0xfde047,
+    ambientIntensity: 0.74,
+    sunColor: 0xfb7185,
+    sunIntensity: 1.55,
+    sunPos: [35, 14, -20],
+    windowGlow: 0.55
+  },
   day: {
+    name: 'Día',
     sky: 0x0c2d48,
     fog: 0x0c2d48,
     oceanDeep: 0x0369a1,
@@ -18,6 +32,7 @@ const THEMES = {
     windowGlow: 0.25
   },
   sunset: {
+    name: 'Ocaso',
     sky: 0x2e1035,
     fog: 0x2e1035,
     oceanDeep: 0x1e293b,
@@ -30,6 +45,7 @@ const THEMES = {
     windowGlow: 0.85
   },
   night: {
+    name: 'Noche',
     sky: 0x040814,
     fog: 0x040814,
     oceanDeep: 0x020617,
@@ -42,16 +58,60 @@ const THEMES = {
     windowGlow: 1.35
   },
   storm: {
-    sky: 0x111827,
-    fog: 0x111827,
-    oceanDeep: 0x0f172a,
+    name: 'Tormenta',
+    sky: 0x0b1120,
+    fog: 0x0b1120,
+    fogDensity: 0.009,
+    oceanDeep: 0x090d16,
+    oceanShallow: 0x1e293b,
+    ambientColor: 0x64748b,
+    ambientIntensity: 0.5,
+    sunColor: 0xcfdbe8,
+    sunIntensity: 0.85,
+    sunPos: [10, 32, 12],
+    windowGlow: 0.95
+  },
+  foggy: {
+    name: 'Bruma Costera',
+    sky: 0x334155,
+    fog: 0x475569,
+    fogDensity: 0.016,
+    oceanDeep: 0x1e293b,
     oceanShallow: 0x334155,
     ambientColor: 0x94a3b8,
-    ambientIntensity: 0.6,
+    ambientIntensity: 0.72,
     sunColor: 0xe2e8f0,
+    sunIntensity: 0.85,
+    sunPos: [15, 30, 20],
+    windowGlow: 0.65
+  },
+  rain: {
+    name: 'Chubasco',
+    sky: 0x1e293b,
+    fog: 0x334155,
+    fogDensity: 0.008,
+    oceanDeep: 0x0f172a,
+    oceanShallow: 0x1e293b,
+    ambientColor: 0x94a3b8,
+    ambientIntensity: 0.68,
+    sunColor: 0xcfdbe8,
     sunIntensity: 0.95,
-    sunPos: [10, 32, 12],
-    windowGlow: 0.75
+    sunPos: [20, 36, 18],
+    windowGlow: 0.55
+  },
+  snow: {
+    name: 'Nevada',
+    sky: 0x243242,
+    fog: 0x334155,
+    fogDensity: 0.0085,
+    oceanDeep: 0x0f172a,
+    oceanShallow: 0x25384e,
+    ambientColor: 0xe2e8f0,
+    ambientIntensity: 0.88,
+    sunColor: 0xf8fafc,
+    sunIntensity: 1.15,
+    sunPos: [20, 36, 18],
+    windowGlow: 1.35
   }
 };
 
@@ -271,59 +331,97 @@ export class CatanBoard3D {
     this.nightGroup.add(this.firefliesPoints);
     this.scene.add(this.nightGroup);
 
-    // 3. Cortina de lluvia 3D y relámpagos para el modo Tormenta
+    // 3. Cortina de lluvia 3D y relámpagos para el modo Tormenta y Chubasco
     this.stormGroup = new THREE.Group();
-    const rainCount = 420;
+    const rainCount = 850;
     const rainGeo = new THREE.BufferGeometry();
     const rainVerts = new Float32Array(rainCount * 6);
     for (let i = 0; i < rainCount; i++) {
-      const x = (Math.random() - 0.5) * 48;
-      const y = Math.random() * 28;
-      const z = (Math.random() - 0.5) * 48;
+      const x = (Math.random() - 0.5) * 56;
+      const y = Math.random() * 32;
+      const z = (Math.random() - 0.5) * 56;
       rainVerts[i * 6] = x;
       rainVerts[i * 6 + 1] = y;
       rainVerts[i * 6 + 2] = z;
-      rainVerts[i * 6 + 3] = x - 0.25;
-      rainVerts[i * 6 + 4] = y - 1.35;
-      rainVerts[i * 6 + 5] = z - 0.15;
+      rainVerts[i * 6 + 3] = x - 0.35;
+      rainVerts[i * 6 + 4] = y - 1.85;
+      rainVerts[i * 6 + 5] = z - 0.2;
     }
     rainGeo.setAttribute('position', new THREE.BufferAttribute(rainVerts, 3));
     const rainMat = new THREE.LineBasicMaterial({
-      color: 0xbae6fd,
+      color: 0xe0f2fe,
       transparent: true,
-      opacity: 0.48
+      opacity: 0.76
     });
     this.rainLines = new THREE.LineSegments(rainGeo, rainMat);
     this.stormGroup.add(this.rainLines);
     this.scene.add(this.stormGroup);
-    this.nextLightningTime = performance.now() + 5000;
+    this.nextLightningTime = performance.now() + 3000;
+
+    // 4. Sistema de copos de nieve 3D cayendo y revoloteando sobre la isla
+    this.snowGroup = new THREE.Group();
+    const snowCount = 650;
+    const snowGeo = new THREE.BufferGeometry();
+    const snowPos = new Float32Array(snowCount * 3);
+    this.snowData = [];
+    for (let i = 0; i < snowCount; i++) {
+      const x = (Math.random() - 0.5) * 60;
+      const y = Math.random() * 32;
+      const z = (Math.random() - 0.5) * 60;
+      snowPos[i * 3] = x;
+      snowPos[i * 3 + 1] = y;
+      snowPos[i * 3 + 2] = z;
+      this.snowData.push({
+        fallSpeed: 0.045 + Math.random() * 0.04,
+        swaySpeed: 1.1 + Math.random() * 1.4,
+        phase: Math.random() * Math.PI * 2
+      });
+    }
+    snowGeo.setAttribute('position', new THREE.BufferAttribute(snowPos, 3));
+    const snowMat = new THREE.PointsMaterial({
+      color: 0xffffff,
+      size: 0.44,
+      transparent: true,
+      opacity: 0.92
+    });
+    this.snowPoints = new THREE.Points(snowGeo, snowMat);
+    this.snowGroup.add(this.snowPoints);
+    this.snowGroup.visible = false;
+    this.scene.add(this.snowGroup);
   }
 
-  setTheme(themeId) {
+  setTheme(themeId, smooth = false) {
     const t = THEMES[themeId] || THEMES.day;
     this.currentTheme = themeId;
-    this.scene.background = new THREE.Color(t.sky);
-    this.scene.fog = new THREE.FogExp2(t.fog, 0.0068);
-    this.oceanMat.color.setHex(t.oceanDeep);
-    this.reefMat.color.setHex(t.oceanShallow);
-    this.ambientLight.color.setHex(t.ambientColor);
-    this.ambientLight.intensity = t.ambientIntensity;
-    this.sunLight.color.setHex(t.sunColor);
-    this.sunLight.intensity = t.sunIntensity;
-    this.sunLight.position.set(...t.sunPos);
+    this.targetTheme = t;
 
     if (this.seagullsGroup) {
-      this.seagullsGroup.visible = themeId === 'day' || themeId === 'sunset';
+      this.seagullsGroup.visible = themeId === 'day' || themeId === 'sunrise' || themeId === 'sunset' || themeId === 'foggy';
     }
     if (this.nightGroup) {
       this.nightGroup.visible = themeId === 'night';
     }
     if (this.stormGroup) {
-      this.stormGroup.visible = themeId === 'storm';
+      this.stormGroup.visible = themeId === 'storm' || themeId === 'rain';
+    }
+    if (this.snowGroup) {
+      this.snowGroup.visible = themeId === 'snow';
     }
 
-    for (const mat of this.windowMaterials) {
-      mat.emissiveIntensity = t.windowGlow;
+    if (!smooth) {
+      this.scene.background = new THREE.Color(t.sky);
+      this.scene.fog = new THREE.FogExp2(t.fog, t.fogDensity || 0.0068);
+      this.oceanMat.color.setHex(t.oceanDeep);
+      this.reefMat.color.setHex(t.oceanShallow);
+      this.ambientLight.color.setHex(t.ambientColor);
+      this.ambientLight.intensity = t.ambientIntensity;
+      this.sunLight.color.setHex(t.sunColor);
+      this.sunLight.intensity = t.sunIntensity;
+      this.sunLight.position.set(...t.sunPos);
+
+      for (const mat of this.windowMaterials) {
+        mat.emissiveIntensity = t.windowGlow;
+      }
     }
   }
 
@@ -578,6 +676,23 @@ export class CatanBoard3D {
       tileMesh.receiveShadow = true;
       hexGroup.add(tileMesh);
 
+      // Corona de nieve perimetral sobre la loseta (deja el 70% central libre para distinguir claramente el bioma)
+      const snowRimGeo = new THREE.RingGeometry(SCALE * 0.72, SCALE * 0.93, 6);
+      const snowRimMat = new THREE.MeshStandardMaterial({
+        color: 0xf8fafc,
+        roughness: 0.45,
+        transparent: true,
+        opacity: 0.58,
+        polygonOffset: true,
+        polygonOffsetFactor: -1,
+        polygonOffsetUnits: -1
+      });
+      const snowRim = new THREE.Mesh(snowRimGeo, snowRimMat);
+      snowRim.rotation.x = -Math.PI / 2;
+      snowRim.position.y = 0.405;
+      snowRim.receiveShadow = true;
+      hexGroup.add(snowRim);
+
       this._addTerrainProps(hexGroup, hex.terrain);
       this.boardGroup.add(hexGroup);
 
@@ -654,7 +769,16 @@ export class CatanBoard3D {
           c1.castShadow = true;
           c2.castShadow = true;
           c3.castShadow = true;
-          tree.add(trunk, c1, c2, c3);
+
+          // Capuchón nevado en la copa del pino
+          const snowTop = new THREE.Mesh(
+            new THREE.ConeGeometry(0.24 * scale, 0.32 * scale, 7),
+            new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.45 })
+          );
+          snowTop.position.y = 1.96 * scale;
+          snowTop.castShadow = true;
+
+          tree.add(trunk, c1, c2, c3, snowTop);
         }
         tree.position.set(pos.x, 0, pos.z);
         hexGroup.add(tree);
@@ -729,6 +853,13 @@ export class CatanBoard3D {
         mound.position.set(t.x, 0.38 + t.h / 2, t.z);
         mound.castShadow = true;
         hexGroup.add(mound);
+
+        const moundSnow = new THREE.Mesh(
+          new THREE.CylinderGeometry(t.r * 0.58, t.r * 0.72, 0.05, 7),
+          new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.5 })
+        );
+        moundSnow.position.set(t.x, 0.38 + t.h + 0.02, t.z);
+        hexGroup.add(moundSnow);
       }
 
       // Horno artesanal con chimenea
@@ -801,6 +932,13 @@ export class CatanBoard3D {
       roof.position.y = 1.98;
       roof.castShadow = true;
 
+      const roofSnow = new THREE.Mesh(
+        new THREE.ConeGeometry(0.46, 0.22, 8),
+        new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.4 })
+      );
+      roofSnow.position.y = 2.16;
+      roofSnow.castShadow = true;
+
       // Aspas giratorias del molino
       const bladesGroup = new THREE.Group();
       bladesGroup.position.set(0, 1.5, 0.42);
@@ -817,7 +955,7 @@ export class CatanBoard3D {
         bladesGroup.add(arm);
       }
 
-      millGroup.add(tower, roof, bladesGroup);
+      millGroup.add(tower, roof, roofSnow, bladesGroup);
       millGroup.position.set(-1.35, 0, -1.15);
       millGroup.rotation.y = Math.PI / 5;
       hexGroup.add(millGroup);
@@ -1832,28 +1970,34 @@ export class CatanBoard3D {
 
     const t = performance.now() * 0.0022;
 
-    // 1. Olas dinámicas del océano
+    const isStorm = this.currentTheme === 'storm';
+
+    // 1. Olas dinámicas del océano (más bravas durante tormentas)
     if (this.oceanGeo) {
       const pos = this.oceanGeo.attributes.position;
+      const waveMult = isStorm ? 2.3 : 1.0;
+      const waveSpeed = isStorm ? 2.0 : 1.0;
       for (let i = 0; i < pos.count; i++) {
         const x = pos.getX(i);
         const z = pos.getZ(i);
-        const wave = Math.sin(x * 0.14 + t) * 0.12 + Math.cos(z * 0.14 + t * 0.8) * 0.12;
+        const wave = (Math.sin(x * 0.14 + t * waveSpeed) * 0.12 + Math.cos(z * 0.14 + t * 0.8 * waveSpeed) * 0.12) * waveMult;
         pos.setY(i, this.oceanBaseY[i] + wave);
       }
       pos.needsUpdate = true;
     }
 
-    // 2. Girar aspas de los molinos de trigo
+    // 2. Girar aspas de los molinos de trigo (giran con fuerza con viento de tormenta)
+    const millSpeed = isStorm ? 0.065 : 0.018;
     for (const blades of this.animatedWindmills) {
-      blades.rotation.z -= 0.018;
+      blades.rotation.z -= millSpeed;
     }
 
     // 3. Balanceo suave de los barcos en los puertos
+    const shipRock = isStorm ? 0.16 : 0.06;
     for (const ship of this.animatedShips) {
       const p = ship.userData.phase || 0;
-      ship.position.y = Math.sin(t * 1.5 + p) * 0.08;
-      ship.rotation.z = Math.sin(t * 1.2 + p) * 0.06;
+      ship.position.y = Math.sin(t * 1.5 + p) * (isStorm ? 0.16 : 0.08);
+      ship.rotation.z = Math.sin(t * 1.2 + p) * shipRock;
     }
 
     // 4. Pequeño salto/pastoreo de las ovejas
@@ -1928,7 +2072,7 @@ export class CatanBoard3D {
       posAttr.needsUpdate = true;
 
       const now = performance.now();
-      if (now > this.nextLightningTime) {
+      if (this.currentTheme === 'storm' && now > this.nextLightningTime) {
         this.sunLight.intensity = 4.2;
         this.ambientLight.intensity = 1.6;
         setTimeout(() => {
@@ -1937,7 +2081,53 @@ export class CatanBoard3D {
             this.ambientLight.intensity = THEMES.storm.ambientIntensity;
           }
         }, 120);
-        this.nextLightningTime = now + 5500 + Math.random() * 7000;
+        this.nextLightningTime = now + 4000 + Math.random() * 5000;
+      }
+    }
+
+    if (this.snowGroup && this.snowGroup.visible && this.snowPoints) {
+      const posAttr = this.snowPoints.geometry.attributes.position;
+      const count = this.snowData.length;
+      for (let i = 0; i < count; i++) {
+        const d = this.snowData[i];
+        let y = posAttr.getY(i) - d.fallSpeed;
+        if (y < 0.2) {
+          y = 30 + Math.random() * 4;
+        }
+        posAttr.setY(i, y);
+        posAttr.setX(i, posAttr.getX(i) + Math.sin(t * d.swaySpeed + d.phase) * 0.03);
+        posAttr.setZ(i, posAttr.getZ(i) + Math.cos(t * d.swaySpeed + d.phase) * 0.03);
+      }
+      posAttr.needsUpdate = true;
+    }
+
+    // 9. Transición suave de iluminación, niebla, cielo y mar al cambiar de hora/clima
+    if (this.targetTheme) {
+      const t = this.targetTheme;
+      const factor = 0.035;
+      this.scene.background.lerp(new THREE.Color(t.sky), factor);
+      if (this.scene.fog) {
+        this.scene.fog.color.lerp(new THREE.Color(t.fog), factor);
+        const targetDensity = t.fogDensity || 0.0068;
+        this.scene.fog.density = THREE.MathUtils.lerp(this.scene.fog.density, targetDensity, factor);
+      }
+      if (this.oceanMat) {
+        this.oceanMat.color.lerp(new THREE.Color(t.oceanDeep), factor);
+      }
+      if (this.reefMat) {
+        this.reefMat.color.lerp(new THREE.Color(t.oceanShallow), factor);
+      }
+      if (this.ambientLight && (!this.stormGroup || !this.stormGroup.visible || !this.isFlashingLightning)) {
+        this.ambientLight.color.lerp(new THREE.Color(t.ambientColor), factor);
+        this.ambientLight.intensity = THREE.MathUtils.lerp(this.ambientLight.intensity, t.ambientIntensity, factor);
+      }
+      if (this.sunLight && (!this.stormGroup || !this.stormGroup.visible || !this.isFlashingLightning)) {
+        this.sunLight.color.lerp(new THREE.Color(t.sunColor), factor);
+        this.sunLight.intensity = THREE.MathUtils.lerp(this.sunLight.intensity, t.sunIntensity, factor);
+        this.sunLight.position.lerp(new THREE.Vector3(...t.sunPos), factor);
+      }
+      for (const mat of this.windowMaterials) {
+        mat.emissiveIntensity = THREE.MathUtils.lerp(mat.emissiveIntensity, t.windowGlow, factor);
       }
     }
 
